@@ -1374,7 +1374,7 @@
                                     <h2 className="text-xl font-bold mt-4 border-b-2 border-black inline-block pb-1">PAYSLIP / ใบแจ้งเงินเดือน</h2>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 gap-y-2 gap-x-8 mb-6 text-sm border p-4 border-gray-300">
+                                <div className="grid grid-cols-2 gap-y-2 gap-x-2 mb-6 text-sm border p-4 border-gray-300">
                                     <div><span className="font-semibold w-24 inline-block">ID:</span> {viewSlip.emp?.id}</div>
                                     <div><span className="font-semibold w-24 inline-block">Period:</span> {months.find(m=>m.val == viewSlip.month)?.label} {viewSlip.year}</div>
                                     <div><span className="font-semibold w-24 inline-block">Name:</span> {viewSlip.emp?.prefix} {viewSlip.emp?.name}</div>
