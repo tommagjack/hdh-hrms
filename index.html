@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hug Dee Home HRMS</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { primary: '#c8a97e', primaryDark: '#b3956b', primaryLight: '#e6dac8' },
+                    fontFamily: { sans: ['Kanit', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <!-- Prevent FOUC -->
+    <script>
+        if (localStorage.getItem('hrms_theme') === 'dark' || (!('hrms_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Print Styles */
+        @media print {
+            body, html { visibility: hidden; height: auto !important; overflow: visible !important; background-color: white !important; }
+            .print-backdrop {
+                position: absolute !important; left: 0 !important; top: 0 !important; 
+                width: 100vw !important; height: auto !important; min-height: 100vh !important;
+                background: transparent !important; display: block !important; 
+                visibility: visible !important;
+            }
+            .print-content { 
+                position: relative !important; width: 100% !important; max-width: 100% !important;
+                max-height: none !important; overflow: visible !important; 
+                box-shadow: none !important; margin: 0 !important; padding: 0 !important;
+            }
+            .print-content * { visibility: visible !important; color: black !important; }
+            .no-print, .no-print * { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-200">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, createContext, useContext, useMemo, useRef } = React;
+
+        // ==========================================
+        // DICTIONARY (TH/EN)
+        // ==========================================
+        const i18n = {
+            th: {
+                app_name: 'Hug Dee Home', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
+                username: 'ชื่อผู้ใช้', password: 'รหัสผ่าน', signin: 'เข้าสู่ระบบ',
+                dashboard: 'แดชบอร์ด', employees: 'พนักงาน', leave_ot: 'การลา & OT', payroll: 'เงินเดือน', my_salary: 'เงินเดือนของฉัน', settings: 'ตั้งค่า', logout: 'ออกจากระบบ',
+                force_refresh: 'ซิงค์ข้อมูล', syncing: 'กำลังซิงค์...',
+                total_emp: 'พนักงานทั้งหมด', pending_req: 'คำร้องรออนุมัติ', expenses: 'ค่าใช้จ่าย',
+                pending_actions: 'รายการคำร้องรอตรวจสอบ', employee: 'พนักงาน', type: 'ประเภท', datetime: 'วัน/เวลา', hours: 'ชั่วโมง/วัน', action: 'จัดการ',
+                no_pending: 'ไม่มีคำร้องรออนุมัติ', search: 'ค้นหา...', export_csv: 'ส่งออก', import_csv: 'นำเข้า',
+                add_emp: 'เพิ่มพนักงาน', edit_emp: 'แก้ไขพนักงาน', name: 'ชื่อ-สกุล', position: 'ตำแหน่ง', tenure: 'อายุงาน', status: 'สถานะ',
+                cancel: 'ยกเลิก', save: 'บันทึก', new_req: 'ส่งคำร้องใหม่',
+                req_pending: 'คำร้องรออนุมัติ', all_history: 'ประวัติทั้งหมด', my_req: 'คำร้องของฉัน',
+                from_to: 'จาก - ถึง', reason: 'เหตุผล', submit: 'ยืนยัน',
+                calc_salary: 'คำนวณเงินเดือน', period: 'รอบบิล', base_salary: 'เงินเดือนพื้นฐาน', deductions: 'รายการหัก', net_pay: 'รับสุทธิ',
+                company_info: 'ข้อมูลคลินิก/บริษัท', global_rates: 'อัตราและภาษี', save_changes: 'บันทึกการตั้งค่า',
+                print: 'พิมพ์', view: 'ดูข้อมูล', delete: 'ลบ',
+                prefix: 'คำนำหน้า', fname: 'ชื่อ-สกุล', nickname: 'ชื่อเล่น', id_card: 'เลขบัตรประชาชน', gender: 'เพศ', dob: 'วันเกิด',
+                start_date: 'วันที่เริ่มงาน', bank_name: 'ชื่อธนาคาร', bank_acc: 'เลขบัญชี',
+                leave_type: 'ประเภทการลา', subtype: 'ประเภทย่อย', start: 'เริ่ม', end: 'ถึง',
+                earnings: 'รายรับ', custom_earn: 'รายรับพิเศษ', custom_deduct: 'รายการหักพิเศษ',
+                add_item: '+ เพิ่มรายการ', ss: 'ประกันสังคม', tax: 'ภาษี', ot: 'ล่วงเวลา (OT)',
+                my_quotas: 'โควตาวันลาของฉัน', total: 'ทั้งหมด', used: 'ใช้ไป', remaining: 'คงเหลือ', days: 'วัน',
+                leave_manage: 'จัดการประเภทการลา', add_leave_type: 'เพิ่มประเภทการลา', quota: 'โควตา (วัน)',
+                emp_type: 'ประเภทพนักงาน', full_time: 'พนักงานประจำ', part_time: 'พนักงานชั่วคราว',
+                phone: 'เบอร์โทรศัพท์', email: 'อีเมล', other: 'อื่นๆ', mr: 'นาย', ms: 'นางสาว', mrs: 'นาง',
+                age: 'อายุ', yrs: 'ปี', mos: 'เดือน', bank_kbank: 'กสิกรไทย (KBank)', bank_scb: 'ไทยพาณิชย์ (SCB)', bank_bbl: 'กรุงเทพ (BBL)', bank_ktb: 'กรุงไทย (KTB)', bank_bay: 'กรุงศรีอยุธยา (BAY)', bank_ttb: 'ทหารไทยธนชาต (TTB)', bank_gsb: 'ออมสิน (GSB)', bank_baac: 'ธ.ก.ส. (BAAC)',
+                logo_url: 'โลโก้ URL', payroll_settings: 'ตั้งค่ารายการรับและหัก', income_items: 'รายการรับ', deduction_items: 'รายการหัก', item_name: 'ชื่อรายการ', calc_type: 'ประเภทเรท', rate_fixed: 'คงที่', rate_percent: 'เปอร์เซ็นต์ (%)', rate_value: 'เรท/จำนวน', max_limit: 'ไม่เกิน (บาท)', add_income: '+ เพิ่มรายการรับ', add_deduction: '+ เพิ่มรายการหัก',
+                duration_mode: 'รูปแบบ', full_day: 'เต็มวัน', hourly: 'รายชั่วโมง',
+                filter_all: 'ทั้งหมด', year: 'ปี', month: 'เดือน'
+            },
+            en: {
+                app_name: 'Hug Dee Home', app_desc: 'HR Management System',
+                username: 'Username', password: 'Password', signin: 'Sign In',
+                dashboard: 'Dashboard', Employees: 'Employees', leave_ot: 'Leave & OT', payroll: 'Payroll', my_salary: 'My Salary', settings: 'Settings', logout: 'Logout',
+                force_refresh: 'Sync', syncing: 'Syncing...',
+                total_emp: 'Total Employees', pending_req: 'Pending Requests', expenses: 'Expenses',
+                pending_actions: 'Pending Actions', employee: 'Employee', type: 'Type', datetime: 'Date/Time', hours: 'Hours/Days', action: 'Action',
+                no_pending: 'No pending requests', search: 'Search...', export_csv: 'Export', import_csv: 'Import',
+                add_emp: 'Add Employee', edit_emp: 'Edit Employee', name: 'Name', position: 'Position', tenure: 'Tenure', status: 'Status',
+                cancel: 'Cancel', save: 'Save', new_req: 'New Request',
+                req_pending: 'Pending Requests', all_history: 'All History', my_req: 'My Requests',
+                from_to: 'From - To', reason: 'Reason', submit: 'Submit',
+                calc_salary: 'Calculate Salary', period: 'Period', base_salary: 'Base Salary', deductions: 'Deductions', net_pay: 'Net Pay',
+                company_info: 'Company Information', global_rates: 'Global Rates & Deductions', save_changes: 'Save Changes',
+                print: 'Print', view: 'View', delete: 'Delete',
+                prefix: 'Prefix', fname: 'Full Name', nickname: 'Nickname', id_card: 'ID Card', gender: 'Gender', dob: 'Date of Birth',
+                start_date: 'Start Date', bank_name: 'Bank Name', bank_acc: 'Bank Account',
+                leave_type: 'Leave Type', subtype: 'Subtype', start: 'Start', end: 'End',
+                earnings: 'Earnings', custom_earn: 'Custom Earnings', custom_deduct: 'Custom Deductions',
+                add_item: '+ Add Item', ss: 'Social Security', tax: 'Tax', ot: 'Overtime (OT)',
+                my_quotas: 'My Leave Quotas', total: 'Total', used: 'Used', remaining: 'Remaining', days: 'Days',
+                leave_manage: 'Manage Leave Types', add_leave_type: 'Add Leave Type', quota: 'Quota (Days)',
+                emp_type: 'Employee Type', full_time: 'Full-time', part_time: 'Part-time',
+                phone: 'Phone', email: 'Email', other: 'Other', mr: 'Mr.', ms: 'Ms.', mrs: 'Mrs.',
+                age: 'Age', yrs: 'yrs', mos: 'mos', bank_kbank: 'KBank', bank_scb: 'SCB', bank_bbl: 'BBL', bank_ktb: 'KTB', bank_bay: 'BAY', bank_ttb: 'TTB', bank_gsb: 'GSB', bank_baac: 'BAAC',
+                logo_url: 'Logo URL', payroll_settings: 'Income & Deduction Settings', income_items: 'Incomes', deduction_items: 'Deductions', item_name: 'Item Name', calc_type: 'Calc Type', rate_fixed: 'Fixed Rate', rate_percent: 'Percent (%)', rate_value: 'Rate/Value', max_limit: 'Max Limit (THB)', add_income: '+ Add Income', add_deduction: '+ Add Deduction',
+                duration_mode: 'Mode', full_day: 'Full Day', hourly: 'Hourly',
+                filter_all: 'All', year: 'Year', month: 'Month'
+            }
+        };
+
+        // ==========================================
+        // UTILS
+        // ==========================================
+        const SwalAlert = Swal.mixin({ confirmButtonColor: '#c8a97e', cancelButtonColor: '#6b7280', fontFamily: 'Kanit' });
+        const formatCurrency = (amount) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount || 0);
+        const formatDate = (dateString, lang) => {
+            if (!dateString) return '-';
+            return new Date(dateString).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        };
+        const ThaiBahtText = (number) => {
+            if (!number || number === 0) return 'ศูนย์บาทถ้วน';
+            const numStr = number.toString().split('.');
+            const baht = numStr[0], satang = numStr[1] ? numStr[1].padEnd(2, '0').substring(0, 2) : '00';
+            const txtNum = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
+            const txtUnit = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
+            const convert = (numStr) => {
+                let text = ""; const len = numStr.length;
+                for (let i = 0; i < len; i++) {
+                    const digit = parseInt(numStr.charAt(i));
+                    if (digit !== 0) {
+                        if (i === len - 1 && digit === 1 && len > 1) text += "เอ็ด";
+                        else if (i === len - 2 && digit === 2) text += "ยี่";
+                        else if (i === len - 2 && digit === 1) text += "";
+                        else text += txtNum[digit];
+                        text += txtUnit[len - i - 1];
+                    }
+                }
+                return text;
+            };
+            let result = convert(baht) + "บาท";
+            if (satang === '00') result += "ถ้วน"; else result += convert(satang) + "สตางค์";
+            return result;
+        };
+
+        const triggerPrint = () => {
+            if (window.self !== window.top) {
+                SwalAlert.fire({
+                    icon: 'info',
+                    title: 'โหมดพรีวิว (Preview)',
+                    text: 'ระบบของหน้าพรีวิวนี้บล็อกการสั่งพิมพ์ กรุณาบันทึกโค้ดเป็นไฟล์ .html แล้วเปิดด้วยเบราว์เซอร์ปกติ (Chrome/Edge) ปุ่ม Print จะทำงานได้ 100%',
+                    confirmButtonText: 'เข้าใจแล้ว'
+                });
+            } else {
+                window.print();
+            }
+        };
+
+        const fetchWithTimeout = async (resource, options = {}) => {
+            const { timeout = 15000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            const response = await fetch(resource, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        };
+
+        // ==========================================
+        // ICONS
+        // ==========================================
+        const Icons = {
+            Dashboard: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>,
+            Users: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>,
+            Calendar: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>,
+            Money: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
+            Settings: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>,
+            Logout: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>,
+            Menu: () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>,
+            Check: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>,
+            X: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>,
+            Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>,
+            Edit: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>,
+            Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>,
+            Eye: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>,
+            Print: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>,
+            Refresh: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>,
+            Sun: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>,
+            Moon: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>,
+            Lang: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>,
+            Download: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>,
+            Upload: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>,
+            Search: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        };
+
+        const initialMockData = {
+            users: [{ id: 'u1', username: 'admin', password: 'password', role: 'Admin', empId: 'HDH001' }, { id: 'u2', username: 'employee', password: 'password', role: 'Employee', empId: 'HDH002' }],
+            employees: [{ id: 'HDH001', prefix: 'นาย', name: 'สมชาย รักดี', nickname: 'ชาย', empType: 'Full-time', idCard: '1234567890123', gender: 'Male', dob: '1985-05-15', phone: '081-2345678', email: 'somchai@hugdee.com', position: 'HR Manager', startDate: '2020-01-01', baseSalary: 45000, bankName: 'KBank', bankAccount: '123-4-56789-0', status: 'Active', customQuotas: {} }, { id: 'HDH002', prefix: 'นางสาว', name: 'สมศรี ขยันดี', nickname: 'ศรี', empType: 'Full-time', idCard: '9876543210987', gender: 'Female', dob: '1992-08-20', phone: '089-8765432', email: 'somsri@hugdee.com', position: 'Staff', startDate: '2023-03-15', baseSalary: 25000, bankName: 'SCB', bankAccount: '098-7-65432-1', status: 'Active', customQuotas: {} }],
+            leaveRequests: [],
+            salaryRecords: [],
+            settings: { companyName: 'Hug Dee Home Clinic', logoUrl: '', address: '123 สุขุมวิท กรุงเทพฯ 10110', phone: '02-123-4567', email: 'hr@hugdee.com', notifyEmail: 'admin@hugdee.com', leaveTypes: [{ name: 'ป่วย (Sick)', quota: 30 }, { name: 'ลากิจ (Personal)', quota: 6 }, { name: 'พักร้อน (Vacation)', quota: 10 }], incomes: [{ id: 'inc_ot', name: 'ล่วงเวลา (OT)', type: 'fixed', rate: 200, max: '' }], deductions: [{ id: 'ded_ss', name: 'ประกันสังคม (SS)', type: 'percent', rate: 5, max: 750 }, { id: 'ded_tax', name: 'ภาษี (Tax)', type: 'percent', rate: 3, max: '' }] }
+        };
+
+        const AppContext = createContext();
+
+        // ==========================================
+        // COMPONENTS
+        // ==========================================
+
+        const Modal = ({ isOpen, onClose, title, children, isPrintable = false }) => {
+            if (!isOpen) return null;
+            return (
+                <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity ${isPrintable ? 'print-backdrop' : ''}`}>
+                    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col ${isPrintable ? 'print-content' : ''}`}>
+                        <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 no-print sticky top-0 bg-white dark:bg-gray-800 z-10">
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{title}</h3>
+                            <button onClick={onClose} className="text-gray-500 hover:text-red-500"><Icons.X /></button>
+                        </div>
+                        <div className="p-6">{children}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Login = ({ onLogin, loading }) => {
+            const { t } = useContext(AppContext);
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#c8a97e] to-[#b3956b] dark:from-gray-800 dark:to-gray-900 relative overflow-hidden transition-colors">
+                    {loading && (
+                        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white">
+                            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+                            <p className="animate-pulse">{t('syncing')}</p>
+                        </div>
+                    )}
+                    <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl w-96 z-20">
+                        <div className="text-center mb-8">
+                            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{t('app_name')}</h1>
+                            <p className="text-[#c8a97e] font-medium">{t('app_desc')}</p>
+                        </div>
+                        <form onSubmit={(e) => { e.preventDefault(); onLogin(username, password); }}>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">{t('username')}</label>
+                                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required
+                                    className="w-full px-3 py-2 border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c8a97e]" />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">{t('password')}</label>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                                    className="w-full px-3 py-2 border dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c8a97e]" />
+                            </div>
+                            <button type="submit" disabled={loading}
+                                className="w-full bg-[#c8a97e] hover:bg-[#b3956b] text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                                {t('signin')}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = () => {
+            const { data, forceRefresh, isSyncing, t, lang, updateRecord } = useContext(AppContext);
+            const currentMonth = new Date().getMonth() + 1, currentYear = new Date().getFullYear();
+            const totalEmp = data.employees?.length || 0;
+            const pendingReqs = data.leaveRequests?.filter(r => r.status === 'Pending') || [];
+            const totalExpenses = data.salaryRecords?.filter(r => r.year === currentYear && r.month === currentMonth).reduce((sum, r) => sum + r.netPay, 0) || 0;
+
+            const handleApproveReject = (id, status) => {
+                SwalAlert.fire({ title: `Confirm`, text: `Set status to ${status}?`, icon: 'warning', showCancelButton: true }).then((res) => {
+                    if (res.isConfirmed) { updateRecord('leaveRequests', id, { status }); SwalAlert.fire('Success', '', 'success'); }
+                });
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{t('dashboard')}</h2>
+                        <button onClick={forceRefresh} disabled={isSyncing} className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border dark:border-gray-700 px-4 py-2 rounded-lg text-sm transition hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <span className={isSyncing ? "animate-spin text-[#c8a97e]" : "text-[#c8a97e]"}><Icons.Refresh /></span>
+                            {isSyncing ? t('syncing') : t('force_refresh')}
+                        </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition">
+                            <div className="p-4 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-200 rounded-full"><Icons.Users /></div>
+                            <div><p className="text-sm text-gray-500 dark:text-gray-400">{t('total_emp')}</p><h3 className="text-2xl font-bold">{totalEmp}</h3></div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition">
+                            <div className="p-4 bg-orange-50 dark:bg-orange-900 text-orange-600 dark:text-orange-200 rounded-full"><Icons.Calendar /></div>
+                            <div><p className="text-sm text-gray-500 dark:text-gray-400">{t('pending_req')}</p><h3 className="text-2xl font-bold">{pendingReqs.length}</h3></div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md transition">
+                            <div className="p-4 bg-green-50 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-full"><Icons.Money /></div>
+                            <div><p className="text-sm text-gray-500 dark:text-gray-400">{t('expenses')} ({new Date().toLocaleString(lang==='th'?'th-TH':'en-US', { month: 'short' })})</p><h3 className="text-2xl font-bold">{formatCurrency(totalExpenses)}</h3></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700"><h3 className="font-semibold">{t('pending_actions')}</h3></div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-sm">
+                                        <th className="p-4">{t('employee')}</th><th className="p-4">{t('type')}</th><th className="p-4">{t('datetime')}</th><th className="p-4">{t('hours')}</th><th className="p-4 text-center">{t('action')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pendingReqs.length === 0 ? <tr><td colSpan="5" className="p-4 text-center text-gray-500">{t('no_pending')}</td></tr> : pendingReqs.map(req => {
+                                        const emp = data.employees.find(e => e.id === req.empId);
+                                        return (
+                                            <tr key={req.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                <td className="p-4">{emp?.name || req.empId}</td>
+                                                <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${req.type==='OT'?'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200':'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'}`}>{req.type} ({req.subtype})</span></td>
+                                                <td className="p-4 text-sm">{formatDate(req.startDate, lang)}</td>
+                                                <td className="p-4">{req.hours}</td>
+                                                <td className="p-4 flex justify-center gap-2">
+                                                    <button onClick={() => handleApproveReject(req.id, 'Approved')} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><Icons.Check /></button>
+                                                    <button onClick={() => handleApproveReject(req.id, 'Rejected')} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><Icons.X /></button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const EmployeeManagement = () => {
+            const { data, forceRefresh, isSyncing, t, lang, addRecord, updateRecord, deleteRecord } = useContext(AppContext);
+            const [emps, setEmps] = useState(data.employees || []);
+            const [showForm, setShowForm] = useState(false);
+            const [isEditMode, setIsEditMode] = useState(false);
+            const [viewProfile, setViewProfile] = useState(null);
+            const [formData, setFormData] = useState({});
+            const [search, setSearch] = useState('');
+            const [isCustomPrefix, setIsCustomPrefix] = useState(false);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => { setEmps(data.employees || []); }, [data.employees]);
+
+            const filteredEmps = emps.filter(e => e.name.toLowerCase().includes(search.toLowerCase()) || e.id.toLowerCase().includes(search.toLowerCase()) || e.position.toLowerCase().includes(search.toLowerCase()));
+
+            const handleSave = (e) => {
+                e.preventDefault();
+                let finalPhone = formData.phone || '';
+                const cleanedPhone = finalPhone.replace(/\D/g, '');
+                if (cleanedPhone.length === 10) finalPhone = `${cleanedPhone.slice(0, 3)}-${cleanedPhone.slice(3)}`;
+                const dataToSave = { ...formData, phone: finalPhone };
+
+                if (isEditMode) { 
+                    updateRecord('employees', dataToSave.id, dataToSave); 
+                } else { 
+                    if (!dataToSave.id || dataToSave.id.includes('Auto')) {
+                        const existingIds = data.employees.map(emp => String(emp.id)).filter(id => id.toUpperCase().startsWith('HDH'));
+                        let nextNum = 1;
+                        if (existingIds.length > 0) {
+                            const nums = existingIds.map(id => parseInt(id.toUpperCase().replace('HDH', ''))).filter(n => !isNaN(n));
+                            if (nums.length > 0) nextNum = Math.max(...nums) + 1;
+                        }
+                        dataToSave.id = 'HDH' + nextNum.toString().padStart(3, '0');
+                    } else {
+                        if (data.employees.find(ex => String(ex.id).trim().toLowerCase() === String(dataToSave.id).trim().toLowerCase())) {
+                            return SwalAlert.fire('Error', 'รหัสพนักงานนี้มีอยู่ในระบบแล้ว', 'error');
+                        }
+                    }
+                    addRecord('employees', dataToSave); 
+                }
+                setShowForm(false); SwalAlert.fire('Saved!', '', 'success');
+            };
+
+            const calculateAge = (dob) => {
+                if(!dob) return '-';
+                const diff = Date.now() - new Date(dob).getTime();
+                const ageDate = new Date(diff); 
+                return Math.abs(ageDate.getUTCFullYear() - 1970) + ' ' + t('yrs');
+            };
+
+            const calculateTenure = (startDate) => {
+                if(!startDate) return '-';
+                const diff = Date.now() - new Date(startDate).getTime();
+                const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+                const months = Math.floor((diff % (1000 * 60 * 60 * 24 * 365.25)) / (1000 * 60 * 60 * 24 * 30.44));
+                return `${years} ${t('yrs')} ${months} ${t('mos')}`;
+            };
+
+            const exportCSV = () => {
+                const headers = ['ID', 'Prefix', 'Name', 'Nickname', 'Employee Type', 'ID Card', 'Gender', 'Position', 'Start Date', 'Phone', 'Email', 'Base Salary', 'Bank Name', 'Bank Account', 'Status'];
+                const rows = emps.map(e => [e.id, e.prefix, e.name, e.nickname, e.empType, e.idCard, e.gender, e.position, e.startDate, e.phone, e.email, e.baseSalary, e.bankName, e.bankAccount, e.status]);
+                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", "employees_export.csv");
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            };
+
+            const importCSV = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const text = evt.target.result;
+                    const rows = text.split('\n').filter(row => row.trim().length > 0);
+                    if(rows.length < 2) return SwalAlert.fire('Error', 'ไม่พบข้อมูลในไฟล์ CSV', 'error');
+
+                    const headers = rows[0].split(',').map(h => h.trim());
+                    let added = 0, updated = 0;
+
+                    for(let i = 1; i < rows.length; i++) {
+                        const cols = rows[i].split(',').map(c => c.trim());
+                        const record = {};
+                        headers.forEach((h, idx) => { record[h] = cols[idx] || ''; });
+                        
+                        const empObj = {
+                            id: record['ID'] || '',
+                            prefix: record['Prefix'] || '',
+                            name: record['Name'] || '',
+                            nickname: record['Nickname'] || '',
+                            empType: record['Employee Type'] || 'Full-time',
+                            idCard: record['ID Card'] || '',
+                            gender: record['Gender'] || '',
+                            position: record['Position'] || '',
+                            startDate: record['Start Date'] || '',
+                            phone: record['Phone'] || '',
+                            email: record['Email'] || '',
+                            baseSalary: parseFloat(record['Base Salary']) || 0,
+                            bankName: record['Bank Name'] || '',
+                            bankAccount: record['Bank Account'] || '',
+                            status: record['Status'] || 'Active'
+                        };
+
+                        if (empObj.name) {
+                            if (empObj.id && data.employees.find(ex => String(ex.id).trim().toLowerCase() === String(empObj.id).trim().toLowerCase())) {
+                                updateRecord('employees', empObj.id, empObj);
+                                updated++;
+                            } else {
+                                if(!empObj.id) empObj.id = 'HDH' + Date.now().toString().slice(-4) + i;
+                                addRecord('employees', empObj);
+                                added++;
+                            }
+                        }
+                    }
+                    SwalAlert.fire('Imported', `นำเข้าสำเร็จ! เพิ่ม ${added} รายการ, อัปเดต ${updated} รายการ`, 'success');
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div>
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{t('employees')}</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={forceRefresh} disabled={isSyncing} className="bg-white dark:bg-gray-800 border dark:border-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition"><span className={isSyncing ? "animate-spin text-[#c8a97e]" : "text-[#c8a97e]"}><Icons.Refresh /></span> {t('force_refresh')}</button>
+                            
+                            <input type="file" accept=".csv" ref={fileInputRef} onChange={importCSV} className="hidden" />
+                            <button onClick={() => fileInputRef.current.click()} className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-blue-100 dark:hover:bg-blue-800 text-sm transition"><Icons.Upload /> {t('import_csv')}</button>
+                            
+                            <button onClick={exportCSV} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm transition"><Icons.Download /> {t('export_csv')}</button>
+                            
+                            <button onClick={() => { setFormData({id: 'HDH-Auto', status: 'Active', empType: 'Full-time'}); setIsCustomPrefix(false); setIsEditMode(false); setShowForm(true); }} className="bg-[#c8a97e] text-white px-4 py-2 rounded-lg flex items-center gap-1 hover:bg-[#b3956b] shadow-md text-sm transition"><Icons.Plus /> {t('add_emp')}</button>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                            <div className="relative w-64">
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400"><Icons.Search /></div>
+                                <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder={t('search')} className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-[#c8a97e] outline-none"/>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-sm">
+                                        <th className="p-4">ID</th><th className="p-4">{t('name')}</th><th className="p-4">{t('position')}</th><th className="p-4">{t('tenure')}</th><th className="p-4">{t('status')}</th><th className="p-4 text-center">{t('action')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredEmps.map(emp => (
+                                        <tr key={emp.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            <td className="p-4 text-sm font-medium">{emp.id}</td>
+                                            <td className="p-4"><div className="font-medium">{emp.prefix} {emp.name}</div><div className="text-xs text-gray-500">{t('nickname')}: {emp.nickname}</div></td>
+                                            <td className="p-4 text-sm">{emp.position}</td>
+                                            <td className="p-4 text-sm">{calculateTenure(emp.startDate)}</td>
+                                            <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${emp.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'}`}>{emp.status}</span></td>
+                                            <td className="p-4 flex justify-center gap-2">
+                                                <button onClick={() => setViewProfile(emp)} title={t('view')} className="p-1.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-200 rounded hover:bg-blue-100"><Icons.Eye /></button>
+                                                <button onClick={() => { setFormData(emp); setIsCustomPrefix(!['นาย','นางสาว','นาง','Mr.','Ms.','Mrs.'].includes(emp.prefix) && !!emp.prefix); setIsEditMode(true); setShowForm(true); }} title={t('edit_emp')} className="p-1.5 bg-yellow-50 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-200 rounded hover:bg-yellow-100"><Icons.Edit /></button>
+                                                <button onClick={() => {
+                                                    SwalAlert.fire({ title: t('delete')+'?', icon: 'warning', showCancelButton: true }).then(res => {
+                                                        if(res.isConfirmed){ deleteRecord('employees', emp.id); SwalAlert.fire('Deleted!', '', 'success'); }
+                                                    });
+                                                }} title={t('delete')} className="p-1.5 bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-200 rounded hover:bg-red-100"><Icons.Trash /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={formData.id && !formData.id.includes('Auto') ? t('edit_emp') : t('add_emp')}>
+                        <form onSubmit={handleSave} className="grid grid-cols-2 gap-4 text-gray-800 dark:text-gray-200">
+                            <div>
+                                <label className="block text-xs mb-1">รหัสพนักงาน</label>
+                                <input type="text" value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} disabled={isEditMode} placeholder="HDH-Auto (เว้นว่างเพื่อสุ่ม)" className={`w-full border dark:border-gray-600 rounded p-2 ${isEditMode ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'}`}/>
+                            </div>
+                            <div><label className="block text-xs mb-1">{t('emp_type')}</label><select value={formData.empType||'Full-time'} onChange={e=>setFormData({...formData, empType:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"><option value="Full-time">{t('full_time')}</option><option value="Part-time">{t('part_time')}</option></select></div>
+                            
+                            <div>
+                                <label className="block text-xs mb-1">{t('prefix')}</label>
+                                <div className="flex gap-2">
+                                    <select value={['นาย','นางสาว','นาง','Mr.','Ms.','Mrs.'].includes(formData.prefix) ? formData.prefix : (formData.prefix ? 'Other' : '')} onChange={e => { if(e.target.value === 'Other') { setIsCustomPrefix(true); setFormData({...formData, prefix: ''}); } else { setIsCustomPrefix(false); setFormData({...formData, prefix: e.target.value}); } }} className="border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2 flex-1" required>
+                                        <option value="">Select</option><option value="นาย">{t('mr')}</option><option value="นางสาว">{t('ms')}</option><option value="นาง">{t('mrs')}</option><option value="Other">{t('other')}</option>
+                                    </select>
+                                    {isCustomPrefix && <input type="text" value={formData.prefix||''} onChange={e=>setFormData({...formData, prefix:e.target.value})} placeholder={t('other')} className="w-1/2 border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2" required/>}
+                                </div>
+                            </div>
+                            <div><label className="block text-xs mb-1">{t('fname')}</label><input type="text" value={formData.name||''} onChange={e=>setFormData({...formData, name:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2" required/></div>
+                            
+                            <div><label className="block text-xs mb-1">{t('nickname')}</label><input type="text" value={formData.nickname||''} onChange={e=>setFormData({...formData, nickname:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                            <div><label className="block text-xs mb-1">{t('id_card')}</label><input type="text" value={formData.idCard||''} onChange={e=>setFormData({...formData, idCard:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                            
+                            <div><label className="block text-xs mb-1">{t('gender')}</label><select value={formData.gender||''} onChange={e=>setFormData({...formData, gender:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"><option value="">Select</option><option>Male</option><option>Female</option></select></div>
+                            <div>
+                                <label className="flex justify-between text-xs mb-1"><span>{t('dob')}</span>{formData.dob && <span className="text-[#c8a97e] font-medium">{calculateAge(formData.dob)}</span>}</label>
+                                <input type="date" value={formData.dob||''} onChange={e=>setFormData({...formData, dob:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/>
+                            </div>
+                            
+                            <div><label className="block text-xs mb-1">{t('position')}</label><input type="text" value={formData.position||''} onChange={e=>setFormData({...formData, position:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                            <div>
+                                <label className="flex justify-between text-xs mb-1"><span>{t('start_date')}</span>{formData.startDate && <span className="text-[#c8a97e] font-medium">{calculateTenure(formData.startDate)}</span>}</label>
+                                <input type="date" value={formData.startDate||''} onChange={e=>setFormData({...formData, startDate:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/>
+                            </div>
+                            
+                            <div><label className="block text-xs mb-1">{t('phone')} (0XXXXXXXXX)</label><input type="text" maxLength="10" value={formData.phone||''} onChange={e=>setFormData({...formData, phone:e.target.value})} placeholder="08xxxxxxxx" className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                            <div><label className="block text-xs mb-1">{t('email')}</label><input type="email" value={formData.email||''} onChange={e=>setFormData({...formData, email:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+
+                            <div><label className="block text-xs mb-1">{t('base_salary')}</label><input type="number" value={formData.baseSalary||''} onChange={e=>setFormData({...formData, baseSalary:parseFloat(e.target.value)})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                            <div><label className="block text-xs mb-1">{t('status')}</label><select value={formData.status||'Active'} onChange={e=>setFormData({...formData, status:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"><option>Active</option><option>Inactive</option></select></div>
+                            
+                            <div className="col-span-2 border-t dark:border-gray-700 pt-4 mt-2">
+                                <h4 className="text-sm font-semibold mb-2 text-[#c8a97e]">Banking Info</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs mb-1">{t('bank_name')}</label>
+                                        <select value={formData.bankName||''} onChange={e=>setFormData({...formData, bankName:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2">
+                                            <option value="">Select</option><option value="KBank">{t('bank_kbank')}</option><option value="SCB">{t('bank_scb')}</option><option value="BBL">{t('bank_bbl')}</option><option value="KTB">{t('bank_ktb')}</option><option value="BAY">{t('bank_bay')}</option><option value="TTB">{t('bank_ttb')}</option><option value="GSB">{t('bank_gsb')}</option><option value="BAAC">{t('bank_baac')}</option><option value="Other">{t('other')}</option>
+                                        </select>
+                                    </div>
+                                    <div><label className="block text-xs mb-1">{t('bank_acc')}</label><input type="text" value={formData.bankAccount||''} onChange={e=>setFormData({...formData, bankAccount:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                                </div>
+                            </div>
+                            <div className="col-span-2 pt-4 flex justify-end gap-2 border-t dark:border-gray-700 mt-4">
+                                <button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 border dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700">{t('cancel')}</button>
+                                <button type="submit" className="px-4 py-2 bg-[#c8a97e] text-white rounded hover:bg-[#b3956b]">{t('save')}</button>
+                            </div>
+                        </form>
+                    </Modal>
+
+                    <Modal isOpen={!!viewProfile} onClose={() => setViewProfile(null)} title="Profile" isPrintable={true}>
+                        {viewProfile && (
+                            <div className="text-gray-800 dark:text-gray-200">
+                                <div className="text-center mb-6 border-b dark:border-gray-700 pb-4">
+                                    <h1 className="text-2xl font-bold text-[#c8a97e]">{viewProfile.prefix} {viewProfile.name}</h1>
+                                    <p className="text-gray-500 dark:text-gray-400">{viewProfile.position} | ID: {viewProfile.id}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm px-4">
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('emp_type')}</span> {viewProfile.empType || '-'}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('id_card')}</span> {viewProfile.idCard || '-'}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('nickname')}</span> {viewProfile.nickname || '-'}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('gender')}</span> {viewProfile.gender || '-'}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('dob')}</span> {formatDate(viewProfile.dob, lang).split(' ')[0]} {viewProfile.dob && `(${calculateAge(viewProfile.dob)})`}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('start_date')}</span> {formatDate(viewProfile.startDate, lang).split(' ')[0]} {viewProfile.startDate && `(${calculateTenure(viewProfile.startDate)})`}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('phone')}</span> {viewProfile.phone || '-'}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('email')}</span> {viewProfile.email || '-'}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('base_salary')}</span> {formatCurrency(viewProfile.baseSalary)}</div>
+                                    <div><span className="text-gray-500 dark:text-gray-400 block text-xs">{t('status')}</span> {viewProfile.status}</div>
+                                    <div className="col-span-2 border-t dark:border-gray-700 pt-4 mt-2">
+                                        <span className="text-gray-500 dark:text-gray-400 block text-xs font-semibold mb-2">Banking Details</span>
+                                        {viewProfile.bankName} - {viewProfile.bankAccount}
+                                    </div>
+                                </div>
+                                <div className="mt-8 flex justify-center no-print">
+                                    <button onClick={triggerPrint} className="flex items-center gap-2 bg-gray-800 dark:bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">
+                                        <Icons.Print /> {t('print')}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
+                </div>
+            );
+        };
+
+        const LeaveOT = () => {
+            const { data, user, t, lang, addRecord, updateRecord, deleteRecord, forceRefresh, isSyncing } = useContext(AppContext);
+            const isAdmin = user.role === 'Admin';
+            const [tab, setTab] = useState(isAdmin ? 'requests' : 'my_requests');
+            const [showForm, setShowForm] = useState(false);
+            
+            const initialForm = { id: '', type: 'Leave', subtype: '', durationMode: 'full', startDate: '', endDate: '', reason: '', empId: user.empId, status: '' };
+            const [form, setForm] = useState(initialForm);
+
+            const myEmpId = String(user.empId || '').trim().toLowerCase();
+            const myReqs = data.leaveRequests?.filter(r => String(r.empId || '').trim().toLowerCase() === myEmpId) || [];
+            const allReqs = data.leaveRequests || [];
+            const pendingReqs = allReqs.filter(r => r.status === 'Pending');
+
+            const getUsedLeave = (empId, type) => {
+                return data.leaveRequests.filter(r => String(r.empId || '').trim().toLowerCase() === String(empId || '').trim().toLowerCase() && r.subtype === type && r.status === 'Approved' && new Date(r.startDate).getFullYear() === new Date().getFullYear()).reduce((sum, r) => sum + (parseFloat(r.hours)/8), 0);
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                let hours = 0;
+                if (form.durationMode === 'full') {
+                    const start = new Date(form.startDate);
+                    const end = new Date(form.endDate);
+                    if (end < start) return SwalAlert.fire('Error', 'วันที่สิ้นสุดต้องมากกว่าหรือเท่ากับวันที่เริ่มต้น', 'error');
+                    const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                    hours = diffDays * 8; 
+                } else {
+                    hours = Math.max(0, (new Date(form.endDate) - new Date(form.startDate)) / (1000 * 60 * 60));
+                    if (hours <= 0) return SwalAlert.fire('Error', 'เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น', 'error');
+                }
+
+                const daysReq = hours / 8;
+                if (form.type === 'Leave' && form.subtype) {
+                    const quotaInfo = data.settings.leaveTypes.find(l => l.name === form.subtype);
+                    if (quotaInfo && quotaInfo.quota) {
+                        let used = getUsedLeave(form.empId, form.subtype);
+                        if (form.id && form.status === 'Approved') {
+                            const oldReq = data.leaveRequests.find(r => r.id === form.id);
+                            if (oldReq && oldReq.subtype === form.subtype) {
+                                used -= (parseFloat(oldReq.hours) / 8);
+                            }
+                        }
+                        if (used + daysReq > quotaInfo.quota) {
+                            const remainDaysTotal = quotaInfo.quota - used;
+                            const rDays = Math.floor(remainDaysTotal);
+                            const rHours = (remainDaysTotal * 8) % 8;
+                            return SwalAlert.fire('Error', `โควตาวันลาไม่เพียงพอ (เหลือ ${rDays} วัน ${rHours} ชั่วโมง)`, 'error');
+                        }
+                    }
+                }
+
+                if (form.id) {
+                    updateRecord('leaveRequests', form.id, { ...form, hours: hours.toFixed(1) });
+                    SwalAlert.fire('Updated', 'แก้ไขข้อมูลสำเร็จ', 'success');
+                } else {
+                    addRecord('leaveRequests', { id: 'REQ'+Date.now(), ...form, hours: hours.toFixed(1), status: isAdmin ? 'Approved' : 'Pending', submittedAt: new Date().toISOString() });
+                    SwalAlert.fire('Success', 'บันทึกข้อมูลสำเร็จ', 'success');
+                }
+                setShowForm(false);
+            };
+
+            const handleEdit = (r) => {
+                let sd = r.startDate || '';
+                let ed = r.endDate || '';
+                if (r.durationMode === 'full') {
+                    sd = sd.split('T')[0];
+                    ed = ed.split('T')[0];
+                } else {
+                    sd = sd.slice(0, 16);
+                    ed = ed.slice(0, 16);
+                }
+                setForm({ ...r, startDate: sd, endDate: ed });
+                setShowForm(true);
+            };
+
+            const handleDelete = (id) => {
+                SwalAlert.fire({ title: 'ลบ/ยกเลิกรายการ?', text: 'คุณต้องการลบหรือยกเลิกรายการนี้ใช่หรือไม่', icon: 'warning', showCancelButton: true }).then(res => {
+                    if(res.isConfirmed){ deleteRecord('leaveRequests', id); SwalAlert.fire('Deleted!', 'ลบรายการสำเร็จ', 'success'); }
+                });
+            };
+
+            const Table = ({ reqs, showName = false, isPendingTab = false, allowEditDelete = false }) => (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                {showName && <th className="p-4">{t('employee')}</th>}<th className="p-4">{t('type')}</th><th className="p-4">{t('from_to')}</th><th className="p-4">{t('hours')}</th><th className="p-4">{t('status')}</th><th className="p-4 text-center">{t('action')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {reqs.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500 dark:text-gray-400">{t('no_pending')}</td></tr>}
+                            {reqs.map(r => {
+                                const matchedEmp = data.employees?.find(e => String(e.id).trim().toLowerCase() === String(r.empId).trim().toLowerCase());
+                                return (
+                                    <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        {showName && <td className="p-4">{matchedEmp?.name || r.empId}</td>}
+                                        <td className="p-4 font-semibold">{r.type} <span className="text-xs font-normal text-gray-500">({r.subtype})</span></td>
+                                        <td className="p-4">
+                                            {new Date(r.startDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })} <br/>
+                                            <span className="text-xs text-gray-400">
+                                                {r.durationMode === 'full' || (r.startDate && r.startDate.length <= 10 && !r.startDate.includes('T'))
+                                                    ? (r.startDate === r.endDate ? t('full_day') : `${new Date(r.startDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })} - ${new Date(r.endDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })}`)
+                                                    : `${new Date(r.startDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${new Date(r.endDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`
+                                                }
+                                            </span>
+                                        </td>
+                                        <td className="p-4">{r.type==='Leave' ? (parseFloat(r.hours)/8).toFixed(1)+' '+t('days') : r.hours+' hrs'}</td>
+                                        <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${r.status==='Approved'?'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200': r.status==='Rejected'?'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200':'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200'}`}>{r.status}</span></td>
+                                        <td className="p-4 flex justify-center gap-2">
+                                            {isPendingTab && r.status === 'Pending' && (
+                                                <>
+                                                    <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Approved'})} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><Icons.Check /></button>
+                                                    <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Rejected'})} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><Icons.X /></button>
+                                                </>
+                                            )}
+                                            {allowEditDelete && (isAdmin || r.status === 'Pending') && (
+                                                <>
+                                                    <button onClick={()=>handleEdit(r)} className="p-1.5 bg-yellow-50 text-yellow-600 rounded hover:bg-yellow-100"><Icons.Edit /></button>
+                                                    <button onClick={()=>handleDelete(r.id)} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100"><Icons.Trash /></button>
+                                                </>
+                                            )}
+                                            {allowEditDelete && !isAdmin && r.status !== 'Pending' && (
+                                                <button onClick={() => SwalAlert.fire({title: 'รายละเอียดคำร้อง', html: `<div class="text-left mt-4 text-sm"><p><b>สถานะ:</b> ${r.status}</p><p><b>ประเภท:</b> ${r.subtype}</p><p><b>เหตุผล:</b> ${r.reason}</p></div>`, icon: r.status === 'Approved' ? 'success' : 'error'})} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Icons.Eye /></button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            );
+
+            let requestedHours = 0;
+            if (form.startDate && form.endDate) {
+                if (form.durationMode === 'full') {
+                    const start = new Date(form.startDate);
+                    const end = new Date(form.endDate);
+                    if (end >= start) requestedHours = (Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1) * 8;
+                } else {
+                    requestedHours = Math.max(0, (new Date(form.endDate) - new Date(form.startDate)) / (1000 * 60 * 60));
+                }
+            }
+
+            let isOverQuota = false;
+            let quotaMessage = null;
+            if (form.type === 'Leave' && form.subtype && form.empId) {
+                const quotaInfo = data.settings.leaveTypes.find(l => l.name === form.subtype);
+                if (quotaInfo && quotaInfo.quota) {
+                    let usedDays = getUsedLeave(form.empId, form.subtype);
+                    if (form.id && form.status === 'Approved') {
+                        const oldReq = data.leaveRequests.find(r => r.id === form.id);
+                        if (oldReq && oldReq.subtype === form.subtype) usedDays -= (parseFloat(oldReq.hours) / 8);
+                    }
+                    const remainDaysTotal = quotaInfo.quota - usedDays;
+                    const requestedDaysTotal = requestedHours / 8;
+                    
+                    isOverQuota = requestedDaysTotal > remainDaysTotal;
+                    const rDays = Math.floor(remainDaysTotal), rHours = (remainDaysTotal * 8) % 8;
+                    const reqD = Math.floor(requestedDaysTotal), reqH = requestedHours % 8;
+                    
+                    quotaMessage = (
+                        <div className={`mt-2 p-3 rounded-lg text-sm border ${isOverQuota ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' : 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'}`}>
+                            <div className="font-semibold mb-1">สถานะโควตาการลา</div>
+                            <div className="flex justify-between"><span>โควตาคงเหลือ:</span> <b>{rDays} วัน {rHours} ชั่วโมง</b></div>
+                            <div className="flex justify-between"><span>จำนวนที่ต้องการลา:</span> <b>{reqD} วัน {reqH} ชั่วโมง</b></div>
+                            {isOverQuota && <div className="mt-2 text-center font-bold text-red-600 dark:text-red-400">⚠️ โควตาไม่เพียงพอ! ไม่สามารถบันทึกได้</div>}
+                        </div>
+                    );
+                }
+            }
+
+            return (
+                <div>
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                        <h2 className="text-2xl font-bold">{t('leave_ot')}</h2>
+                        <div className="flex gap-2">
+                            <button onClick={forceRefresh} disabled={isSyncing} className="bg-white dark:bg-gray-800 border dark:border-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition"><span className={isSyncing ? "animate-spin text-[#c8a97e]" : "text-[#c8a97e]"}><Icons.Refresh /></span> {t('force_refresh')}</button>
+                            <button onClick={() => { setForm(initialForm); setShowForm(true); }} className="bg-[#c8a97e] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#b3956b] text-sm"><Icons.Plus /> {t('new_req')}</button>
+                        </div>
+                    </div>
+
+                    {/* Quota Summary Cards (For Employee or viewing own) */}
+                    <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="col-span-full mb-2 font-semibold text-gray-600 dark:text-gray-300">{t('my_quotas')} ({new Date().getFullYear()})</div>
+                        {data.settings.leaveTypes.map(lt => {
+                            const used = getUsedLeave(user.empId, lt.name);
+                            const total = lt.quota || '∞';
+                            const remain = lt.quota ? (lt.quota - used) : '∞';
+                            return (
+                                <div key={lt.name} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col items-center text-center">
+                                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{lt.name}</span>
+                                    <div className="text-2xl font-bold text-[#c8a97e]">{remain} <span className="text-sm font-normal text-gray-400">{t('days')}</span></div>
+                                    <div className="text-xs text-gray-400 mt-2">{t('used')}: {used} / {t('total')}: {total}</div>
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    <div className="flex border-b dark:border-gray-700 mb-6">
+                        {isAdmin && <button onClick={()=>setTab('requests')} className={`px-4 py-2 ${tab==='requests' ? 'border-b-2 border-[#c8a97e] text-[#c8a97e] font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{t('req_pending')} ({pendingReqs.length})</button>}
+                        {isAdmin && <button onClick={()=>setTab('all')} className={`px-4 py-2 ${tab==='all' ? 'border-b-2 border-[#c8a97e] text-[#c8a97e] font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{t('all_history')}</button>}
+                        <button onClick={()=>setTab('my_requests')} className={`px-4 py-2 ${tab==='my_requests' ? 'border-b-2 border-[#c8a97e] text-[#c8a97e] font-semibold' : 'text-gray-500 hover:text-gray-700'}`}>{t('my_req')}</button>
+                    </div>
+
+                    {tab === 'requests' && isAdmin && <Table reqs={pendingReqs} showName isPendingTab />}
+                    {tab === 'all' && isAdmin && <Table reqs={allReqs} showName allowEditDelete />}
+                    {tab === 'my_requests' && <Table reqs={myReqs} allowEditDelete />}
+
+                    <Modal isOpen={showForm} onClose={() => setShowForm(false)} title={form.id ? 'แก้ไขข้อมูล' : t('new_req')}>
+                        <form onSubmit={handleSubmit} className="space-y-4 text-gray-800 dark:text-gray-200">
+                            {isAdmin && <div><label className="block text-sm mb-1">{t('employee')}</label><select value={form.empId} onChange={e=>setForm({...form, empId: e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2">{data.employees?.map(e => <option key={e.id} value={e.id}>{e.id} - {e.name}</option>)}</select></div>}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div><label className="block text-sm mb-1">{t('type')}</label><select value={form.type} onChange={e=>setForm({...form, type: e.target.value, subtype: ''})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"><option>Leave</option><option>OT</option></select></div>
+                                {form.type === 'Leave' ? (
+                                    <div><label className="block text-sm mb-1">{t('leave_type')}</label><select value={form.subtype} onChange={e=>setForm({...form, subtype: e.target.value})} required className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"><option value="">Select</option>{data.settings.leaveTypes.map(lt=><option key={lt.name} value={lt.name}>{lt.name}</option>)}</select></div>
+                                ) : (
+                                    <div><label className="block text-sm mb-1">OT Reason/Task</label><input type="text" value={form.subtype} onChange={e=>setForm({...form, subtype: e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2" required placeholder="e.g. Clear backlog"/></div>
+                                )}
+                            </div>
+                            
+                            <div className="mb-4">
+                                <label className="block text-sm mb-1 font-medium">{t('duration_mode')}</label>
+                                <div className="flex gap-6 mt-2">
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="durationMode" checked={form.durationMode === 'full'} onChange={() => setForm({...form, durationMode: 'full', startDate: '', endDate: ''})} className="accent-[#c8a97e] w-4 h-4" /> {t('full_day')}</label>
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="durationMode" checked={form.durationMode === 'hourly'} onChange={() => setForm({...form, durationMode: 'hourly', startDate: '', endDate: ''})} className="accent-[#c8a97e] w-4 h-4" /> {t('hourly')}</label>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div><label className="block text-sm mb-1">{t('start')}</label><input type={form.durationMode === 'full' ? 'date' : 'datetime-local'} value={form.startDate} onChange={e=>setForm({...form, startDate: e.target.value})} required className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                                <div><label className="block text-sm mb-1">{t('end')}</label><input type={form.durationMode === 'full' ? 'date' : 'datetime-local'} value={form.endDate} onChange={e=>setForm({...form, endDate: e.target.value})} required className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2"/></div>
+                            </div>
+                            
+                            {isAdmin && form.id && (
+                                <div>
+                                    <label className="block text-sm mb-1">{t('status')}</label>
+                                    <select value={form.status} onChange={e=>setForm({...form, status: e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2">
+                                        <option value="Pending">Pending (รออนุมัติ)</option>
+                                        <option value="Approved">Approved (อนุมัติ)</option>
+                                        <option value="Rejected">Rejected (ปฏิเสธ)</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            <div><label className="block text-sm mb-1">{t('reason')}</label><textarea value={form.reason} onChange={e=>setForm({...form, reason: e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 rounded p-2 h-20" required></textarea></div>
+                            
+                            {/* แสดงกล่องแจ้งเตือนโควตา */}
+                            {quotaMessage}
+
+                            <div className="pt-4 flex justify-end gap-2 border-t dark:border-gray-700 mt-4">
+                                <button type="button" onClick={()=>setShowForm(false)} className="px-4 py-2 border dark:border-gray-600 rounded">{t('cancel')}</button>
+                                <button type="submit" disabled={isOverQuota} className={`px-4 py-2 text-white rounded transition ${isOverQuota ? 'bg-gray-400 cursor-not-allowed dark:bg-gray-600' : 'bg-[#c8a97e] hover:bg-[#b3956b]'}`}>{t('submit')}</button>
+                            </div>
+                        </form>
+                    </Modal>
+                </div>
+            );
+        };
+
+        const Payroll = () => {
+            const { data, user, t, lang, addRecord, updateRecord, deleteRecord, forceRefresh, isSyncing } = useContext(AppContext);
+            const isAdmin = user.role === 'Admin';
+            const [viewSlip, setViewSlip] = useState(null);
+            const [showCalc, setShowCalc] = useState(false);
+            const fileInputRef = useRef(null);
+            
+            // Filters
+            const [filterYear, setFilterYear] = useState('All');
+            const [filterMonth, setFilterMonth] = useState('All');
+            const [filterEmp, setFilterEmp] = useState('All');
+
+            const [calcForm, setCalcForm] = useState({ id: '', empId: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, customEarnings: [], customDeductions: [], dynamicIncomes: {}, dynamicDeductions: {} });
+
+            const years = Array.from({length: 5}, (_, i) => new Date().getFullYear() - 2 + i);
+            const months = Array.from({length: 12}, (_, i) => ({ val: i+1, label: new Date(0, i).toLocaleString(lang==='th'?'th-TH':'en-US', { month: 'long' }) }));
+
+            // ดึงข้อมูลให้ถูกคน: ลบช่องว่างและไม่สนใจตัวพิมพ์เล็ก-ใหญ่
+            const currentEmpId = String(user.empId || '').trim().toLowerCase();
+            let rawRecords = isAdmin ? (data.salaryRecords || []) : (data.salaryRecords?.filter(r => String(r.empId || '').trim().toLowerCase() === currentEmpId) || []);
+
+            // Apply Filters & Sorting (Newest to Oldest)
+            const records = rawRecords
+                .filter(r => filterYear === 'All' || String(r.year) === String(filterYear))
+                .filter(r => filterMonth === 'All' || String(r.month) === String(filterMonth))
+                .filter(r => filterEmp === 'All' || String(r.empId).trim() === String(filterEmp).trim())
+                .sort((a, b) => new Date(b.date || `${b.year}-${b.month}-01`) - new Date(a.date || `${a.year}-${a.month}-01`));
+
+            const uniqueYears = [...new Set(rawRecords.map(r => r.year))].sort((a,b)=>b-a);
+
+            useEffect(() => {
+                if (calcForm.empId && calcForm.year && calcForm.month && data.settings?.incomes && !calcForm.id) {
+                    const approvedOTs = data.leaveRequests?.filter(r => String(r.empId).trim().toLowerCase() === String(calcForm.empId).trim().toLowerCase() && r.type === 'OT' && r.status === 'Approved' && new Date(r.startDate).getMonth() + 1 === parseInt(calcForm.month) && new Date(r.startDate).getFullYear() === parseInt(calcForm.year)) || [];
+                    const otHours = approvedOTs.reduce((sum, r) => sum + parseFloat(r.hours), 0);
+                    
+                    const otItem = data.settings.incomes.find(i => i.name.toLowerCase().includes('ot') || i.name.includes('โอที') || i.name.includes('ล่วงเวลา'));
+                    if (otItem && otHours > 0 && !calcForm.dynamicIncomes[otItem.id]) {
+                        setCalcForm(prev => ({ ...prev, dynamicIncomes: { ...prev.dynamicIncomes, [otItem.id]: otHours } }));
+                    }
+                }
+            }, [calcForm.empId, calcForm.month, calcForm.year, data.leaveRequests, data.settings?.incomes, calcForm.id]);
+
+            const selectedEmp = data.employees?.find(e => String(e.id).trim().toLowerCase() === String(calcForm.empId).trim().toLowerCase());
+            const baseSalary = selectedEmp?.baseSalary || 0;
+            
+            let dynamicIncomesTotal = 0;
+            const calcIncomes = [];
+            (data.settings?.incomes || []).forEach(inc => {
+                if (inc.type === 'percent') {
+                    if (calcForm.dynamicIncomes[inc.id] !== false) { 
+                        let amt = baseSalary * (inc.rate / 100);
+                        if (inc.max) amt = Math.min(amt, parseFloat(inc.max));
+                        dynamicIncomesTotal += amt;
+                        calcIncomes.push({ name: inc.name, amount: amt });
+                    }
+                } else {
+                    const qty = parseFloat(calcForm.dynamicIncomes[inc.id]) || 0;
+                    if (qty > 0) {
+                        let amt = inc.rate * qty;
+                        if (inc.max) amt = Math.min(amt, parseFloat(inc.max));
+                        dynamicIncomesTotal += amt;
+                        calcIncomes.push({ name: inc.name, amount: amt, qty, rate: inc.rate });
+                    }
+                }
+            });
+
+            // เลื่อนการคำนวณรายรับรวมมาไว้ก่อน เพื่อนำยอดไปคำนวณหักเปอร์เซ็นต์ (เช่น ภาษี)
+            const earningsTotal = baseSalary + dynamicIncomesTotal + calcForm.customEarnings.reduce((s, e) => s + (parseFloat(e.amount)||0), 0);
+
+            let dynamicDeductionsTotal = 0;
+            const calcDeductions = [];
+            (data.settings?.deductions || []).forEach(ded => {
+                if (ded.type === 'percent') {
+                    if (calcForm.dynamicDeductions[ded.id] !== false) { 
+                        // เปลี่ยนจากคำนวณด้วย baseSalary เป็น earningsTotal
+                        let amt = earningsTotal * (ded.rate / 100);
+                        if (ded.max) amt = Math.min(amt, parseFloat(ded.max));
+                        dynamicDeductionsTotal += amt;
+                        calcDeductions.push({ name: ded.name, amount: amt });
+                    }
+                } else {
+                    const qty = parseFloat(calcForm.dynamicDeductions[ded.id]) || 0;
+                    if (qty > 0) {
+                        let amt = ded.rate * qty;
+                        if (ded.max) amt = Math.min(amt, parseFloat(ded.max));
+                        dynamicDeductionsTotal += amt;
+                        calcDeductions.push({ name: ded.name, amount: amt, qty, rate: ded.rate });
+                    }
+                }
+            });
+
+            const deductionsTotal = dynamicDeductionsTotal + calcForm.customDeductions.reduce((s, d) => s + (parseFloat(d.amount)||0), 0);
+            const netPay = earningsTotal - deductionsTotal;
+
+            const handleEditClick = (record) => {
+                setCalcForm({
+                    id: record.id,
+                    empId: record.empId,
+                    year: record.year,
+                    month: record.month,
+                    customEarnings: record.customEarnings || [],
+                    customDeductions: record.customDeductions || [],
+                    dynamicIncomes: record.dynamicIncomes || {},
+                    dynamicDeductions: record.dynamicDeductions || {}
+                });
+                setShowCalc(true);
+            };
+
+            const handleSaveRecord = () => {
+                const record = { ...calcForm, baseSalary, calculatedIncomes: calcIncomes, calculatedDeductions: calcDeductions, netPay, date: new Date().toISOString() };
+                
+                if (calcForm.id) {
+                    updateRecord('salaryRecords', calcForm.id, record);
+                    setShowCalc(false); 
+                    SwalAlert.fire('Updated', 'อัปเดตข้อมูลสำเร็จ', 'success');
+                } else {
+                    const exists = data.salaryRecords?.find(r => String(r.empId).trim().toLowerCase() === String(calcForm.empId).trim().toLowerCase() && r.year === parseInt(calcForm.year) && r.month === parseInt(calcForm.month));
+                    if (exists) return SwalAlert.fire('Warning', 'เดือนนี้มีข้อมูลเงินเดือนของพนักงานท่านนี้แล้ว', 'warning');
+
+                    record.id = 'PAY' + Date.now();
+                    addRecord('salaryRecords', record);
+                    setShowCalc(false); 
+                    SwalAlert.fire('Saved', 'เพิ่มข้อมูลสำเร็จ', 'success');
+                }
+            };
+
+            const arrUpdate = (type, action, index, field, value) => {
+                const arr = [...calcForm[type]];
+                if(action === 'add') arr.push({name:'', amount:0});
+                else if(action === 'remove') arr.splice(index, 1);
+                else arr[index][field] = field==='amount' ? (parseFloat(value)||0) : value;
+                setCalcForm({...calcForm, [type]: arr});
+            };
+
+            const exportCSV = () => {
+                const headers = ['ID', 'Employee ID', 'Year', 'Month', 'Base Salary', 'Net Pay', 'Date'];
+                const rows = records.map(r => [r.id, r.empId, r.year, r.month, r.baseSalary, r.netPay, formatDate(r.date, 'en').replace(/,/g, '')]);
+                const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+                const link = document.createElement("a");
+                link.setAttribute("href", encodeURI(csvContent));
+                link.setAttribute("download", "payroll_export.csv");
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            };
+
+            const importCSV = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const text = evt.target.result;
+                    const rows = text.split('\n').filter(row => row.trim().length > 0);
+                    if(rows.length < 2) return SwalAlert.fire('Error', 'ไม่พบข้อมูลในไฟล์ CSV', 'error');
+
+                    const headers = rows[0].split(',').map(h => h.trim());
+                    let added = 0, updated = 0;
+
+                    for(let i = 1; i < rows.length; i++) {
+                        const cols = rows[i].split(',').map(c => c.trim());
+                        const record = {};
+                        headers.forEach((h, idx) => { record[h] = cols[idx] || ''; });
+                        
+                        const payObj = {
+                            id: record['ID'] || '',
+                            empId: record['Employee ID'] || '',
+                            year: parseInt(record['Year']) || new Date().getFullYear(),
+                            month: parseInt(record['Month']) || new Date().getMonth() + 1,
+                            baseSalary: parseFloat(record['Base Salary']) || 0,
+                            netPay: parseFloat(record['Net Pay']) || 0,
+                            date: record['Date'] || new Date().toISOString()
+                        };
+
+                        if (payObj.empId) {
+                            if (payObj.id && data.salaryRecords.find(ex => ex.id === payObj.id)) {
+                                updateRecord('salaryRecords', payObj.id, payObj);
+                                updated++;
+                            } else {
+                                if(!payObj.id) payObj.id = 'PAY' + Date.now().toString().slice(-4) + i; 
+                                addRecord('salaryRecords', payObj);
+                                added++;
+                            }
+                        }
+                    }
+                    SwalAlert.fire('Imported', `นำเข้าสำเร็จ! เพิ่ม ${added} รายการ, อัปเดต ${updated} รายการ`, 'success');
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div>
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                        <h2 className="text-2xl font-bold">{isAdmin ? t('payroll') : t('my_salary')}</h2>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={forceRefresh} disabled={isSyncing} className="bg-white dark:bg-gray-800 border dark:border-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition"><span className={isSyncing ? "animate-spin text-[#c8a97e]" : "text-[#c8a97e]"}><Icons.Refresh /></span> {t('force_refresh')}</button>
+                            
+                            {isAdmin && (
+                                <>
+                                    <input type="file" accept=".csv" ref={fileInputRef} onChange={importCSV} className="hidden" />
+                                    <button onClick={() => fileInputRef.current.click()} className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-blue-100 dark:hover:bg-blue-800 text-sm transition"><Icons.Upload /> {t('import_csv')}</button>
+                                    <button onClick={exportCSV} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm transition"><Icons.Download /> {t('export_csv')}</button>
+                                    <button onClick={() => { setCalcForm({ id: '', empId: '', year: new Date().getFullYear(), month: new Date().getMonth() + 1, customEarnings: [], customDeductions: [], dynamicIncomes: {}, dynamicDeductions: {} }); setShowCalc(true); }} className="bg-[#c8a97e] text-white px-4 py-2 rounded-lg flex items-center gap-1 hover:bg-[#b3956b] shadow-md text-sm transition"><Icons.Plus /> {t('calc_salary')}</button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-6 flex flex-wrap gap-4 items-end">
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">{t('year')}</label>
+                            <select value={filterYear} onChange={e=>setFilterYear(e.target.value)} className="border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded p-2 text-sm w-32">
+                                <option value="All">{t('filter_all')}</option>
+                                {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">{t('month')}</label>
+                            <select value={filterMonth} onChange={e=>setFilterMonth(e.target.value)} className="border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded p-2 text-sm w-32">
+                                <option value="All">{t('filter_all')}</option>
+                                {months.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
+                            </select>
+                        </div>
+                        {isAdmin && (
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-1">{t('employee')}</label>
+                                <select value={filterEmp} onChange={e=>setFilterEmp(e.target.value)} className="border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded p-2 text-sm w-48">
+                                    <option value="All">{t('filter_all')}</option>
+                                    {data.employees?.map(e => <option key={e.id} value={e.id}>{e.id} - {e.name}</option>)}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                    <th className="p-4">{t('period')}</th>{isAdmin && <th className="p-4">{t('employee')}</th>}<th className="p-4">{t('base_salary')}</th><th className="p-4">{t('deductions')}</th><th className="p-4">{t('net_pay')}</th><th className="p-4 text-center">{t('action')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {records.length === 0 && <tr><td colSpan={isAdmin?6:5} className="p-4 text-center text-gray-500">ไม่มีข้อมูล</td></tr>}
+                                {records.map(r => {
+                                    const emp = data.employees?.find(e => String(e.id).trim().toLowerCase() === String(r.empId).trim().toLowerCase());
+                                    
+                                    // คำนวณยอดหักรวมทั้งหมด
+                                    const calcDed = (r.calculatedDeductions || []).reduce((s, d) => s + (parseFloat(d.amount) || 0), 0);
+                                    const custDed = (r.customDeductions || []).reduce((s, d) => s + (parseFloat(d.amount) || 0), 0);
+                                    const legacyDed = (parseFloat(r.ssDeduction) || 0) + (parseFloat(r.taxDeduction) || 0);
+                                    const totalDed = calcDed + custDed + legacyDed;
+
+                                    return (
+                                        <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            <td className="p-4 font-medium">{r.month}/{r.year}</td>
+                                            {isAdmin && <td className="p-4">{emp?.name || r.empId}</td>}
+                                            <td className="p-4">{formatCurrency(r.baseSalary)}</td>
+                                            <td className="p-4 text-red-500">{formatCurrency(totalDed)}</td>
+                                            <td className="p-4 font-bold text-green-600 dark:text-green-400">{formatCurrency(r.netPay)}</td>
+                                            <td className="p-4 flex justify-center gap-2">
+                                                <button onClick={() => setViewSlip({...r, emp})} className="px-3 py-1 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-200 rounded text-xs flex items-center gap-1"><Icons.Eye /> Slip</button>
+                                                {isAdmin && <button onClick={() => handleEditClick(r)} className="p-1.5 bg-yellow-50 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-200 rounded hover:bg-yellow-100"><Icons.Edit /></button>}
+                                                {isAdmin && <button onClick={() => {
+                                                    SwalAlert.fire({ title: 'ลบข้อมูล?', text: 'คุณต้องการลบสลิปเงินเดือนนี้หรือไม่', icon: 'warning', showCancelButton: true }).then(res => {
+                                                        if(res.isConfirmed){ deleteRecord('salaryRecords', r.id); SwalAlert.fire('Deleted!', '', 'success'); }
+                                                    });
+                                                }} className="p-1.5 bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-200 rounded hover:bg-red-100"><Icons.Trash /></button>}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {isAdmin && (
+                        <Modal isOpen={showCalc} onClose={() => setShowCalc(false)} title={calcForm.id ? 'แก้ไขสลิปเงินเดือน' : t('calc_salary')}>
+                            <div className="space-y-6 text-gray-800 dark:text-gray-200">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div><label className="block text-xs mb-1">Year</label><select value={calcForm.year} onChange={e=>setCalcForm({...calcForm, year:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 p-2 rounded"><option value="">Select</option>{years.map(y=><option key={y}>{y}</option>)}</select></div>
+                                    <div><label className="block text-xs mb-1">Month</label><select value={calcForm.month} onChange={e=>setCalcForm({...calcForm, month:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 p-2 rounded"><option value="">Select</option>{months.map(m=><option key={m.val} value={m.val}>{m.label}</option>)}</select></div>
+                                    <div><label className="block text-xs mb-1">Employee</label><select value={calcForm.empId} onChange={e=>setCalcForm({...calcForm, empId:e.target.value})} className="w-full border dark:border-gray-600 bg-white dark:bg-gray-700 p-2 rounded"><option value="">Select Employee</option>{data.employees?.map(e=><option key={e.id} value={e.id}>{e.id} - {e.name}</option>)}</select></div>
+                                </div>
+
+                                {calcForm.empId && (
+                                    <div className="grid grid-cols-2 gap-8 border-t dark:border-gray-700 pt-4">
+                                        {/* EARNINGS */}
+                                        <div>
+                                            <h4 className="font-bold mb-4 border-b dark:border-gray-700 pb-2 text-[#c8a97e]">{t('earnings')}</h4>
+                                            <div className="flex justify-between text-sm mb-2"><span>{t('base_salary')}</span><span>{formatCurrency(baseSalary)}</span></div>
+                                            
+                                            {(data.settings?.incomes || []).map(inc => (
+                                                <div key={inc.id} className="flex justify-between items-center text-sm mb-2">
+                                                    <span>{inc.name} <span className="text-gray-400 text-xs">{inc.type === 'percent' ? `(${inc.rate}%)` : `(${inc.rate})`}</span></span>
+                                                    {inc.type === 'percent' ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-gray-400">Apply</span>
+                                                            <input type="checkbox" checked={calcForm.dynamicIncomes[inc.id] !== false} onChange={e => setCalcForm({...calcForm, dynamicIncomes: {...calcForm.dynamicIncomes, [inc.id]: e.target.checked}})} />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <input type="number" placeholder="จำนวน" value={calcForm.dynamicIncomes[inc.id] || ''} onChange={e => setCalcForm({...calcForm, dynamicIncomes: {...calcForm.dynamicIncomes, [inc.id]: e.target.value}})} className="w-20 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-right" />
+                                                            <span className="text-gray-500 text-xs">x {inc.rate}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            
+                                            <div className="mt-4 border-t dark:border-gray-700 pt-2">
+                                                <div className="flex justify-between items-center mb-2"><span className="text-sm font-semibold">{t('custom_earn')}</span><button onClick={()=>arrUpdate('customEarnings', 'add')} className="text-xs text-[#c8a97e]">{t('add_item')}</button></div>
+                                                {calcForm.customEarnings.map((c, i) => (
+                                                    <div key={i} className="flex gap-2 mb-2">
+                                                        <input placeholder="Name" value={c.name} onChange={e=>arrUpdate('customEarnings', 'update', i, 'name', e.target.value)} className="w-1/2 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-sm"/>
+                                                        <input type="number" value={c.amount} onChange={e=>arrUpdate('customEarnings', 'update', i, 'amount', e.target.value)} className="w-1/3 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-sm text-right"/>
+                                                        <button onClick={()=>arrUpdate('customEarnings', 'remove', i)} className="text-red-500"><Icons.X /></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex justify-between font-bold text-green-600 dark:text-green-400 mt-4 border-t dark:border-gray-700 pt-2"><span>Total</span><span>{formatCurrency(earningsTotal)}</span></div>
+                                        </div>
+
+                                        {/* DEDUCTIONS */}
+                                        <div>
+                                            <h4 className="font-bold mb-4 border-b dark:border-gray-700 pb-2 text-[#c8a97e]">{t('deductions')}</h4>
+                                            
+                                            {(data.settings?.deductions || []).map(ded => (
+                                                <div key={ded.id} className="flex justify-between items-center text-sm mb-2">
+                                                    <span>{ded.name} <span className="text-gray-400 text-xs">{ded.type === 'percent' ? `(${ded.rate}%)` : `(${ded.rate})`}</span></span>
+                                                    {ded.type === 'percent' ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs text-gray-400">Apply</span>
+                                                            <input type="checkbox" checked={calcForm.dynamicDeductions[ded.id] !== false} onChange={e => setCalcForm({...calcForm, dynamicDeductions: {...calcForm.dynamicDeductions, [ded.id]: e.target.checked}})} />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <input type="number" placeholder="จำนวน" value={calcForm.dynamicDeductions[ded.id] || ''} onChange={e => setCalcForm({...calcForm, dynamicDeductions: {...calcForm.dynamicDeductions, [ded.id]: e.target.value}})} className="w-20 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-right" />
+                                                            <span className="text-gray-500 text-xs">x {ded.rate}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+
+                                            <div className="mt-6 border-t dark:border-gray-700 pt-2">
+                                                <div className="flex justify-between items-center mb-2"><span className="text-sm font-semibold">{t('custom_deduct')}</span><button onClick={()=>arrUpdate('customDeductions', 'add')} className="text-xs text-[#c8a97e]">{t('add_item')}</button></div>
+                                                {calcForm.customDeductions.map((c, i) => (
+                                                    <div key={i} className="flex gap-2 mb-2">
+                                                        <input placeholder="Name" value={c.name} onChange={e=>arrUpdate('customDeductions', 'update', i, 'name', e.target.value)} className="w-1/2 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-sm"/>
+                                                        <input type="number" value={c.amount} onChange={e=>arrUpdate('customDeductions', 'update', i, 'amount', e.target.value)} className="w-1/3 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-sm text-right"/>
+                                                        <button onClick={()=>arrUpdate('customDeductions', 'remove', i)} className="text-red-500"><Icons.X /></button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex justify-between font-bold text-red-500 mt-4 border-t dark:border-gray-700 pt-2"><span>Total</span><span>{formatCurrency(deductionsTotal)}</span></div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {calcForm.empId && (
+                                    <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg flex justify-between items-center mt-6">
+                                        <div className="text-lg font-bold">{t('net_pay')}</div>
+                                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(netPay)}</div>
+                                    </div>
+                                )}
+
+                                <div className="pt-4 flex justify-end gap-2 border-t dark:border-gray-700">
+                                    <button onClick={()=>setShowCalc(false)} className="px-4 py-2 border dark:border-gray-600 rounded">{t('cancel')}</button>
+                                    <button onClick={handleSaveRecord} disabled={!calcForm.empId} className="px-4 py-2 bg-[#c8a97e] text-white rounded disabled:opacity-50">{t('save')}</button>
+                                </div>
+                            </div>
+                        </Modal>
+                    )}
+
+                    {/* Highly Formatted Payslip Modal */}
+                    <Modal isOpen={!!viewSlip} onClose={() => setViewSlip(null)} title="Payslip" isPrintable={true}>
+                        {viewSlip && (
+                            <div className="bg-white text-black font-sans text-sm p-4 print-area">
+                                <div className="text-center mb-6">
+                                    {data.settings?.logoUrl && <img src={data.settings.logoUrl} alt="Logo" className="h-20 mx-auto mb-3 object-contain" />}
+                                    <h1 className="text-2xl font-bold mb-1">{data.settings?.companyName}</h1>
+                                    <p className="text-xs text-gray-600">{data.settings?.address} | Tel: {data.settings?.phone}</p>
+                                    <h2 className="text-xl font-bold mt-4 border-b-2 border-black inline-block pb-1">PAYSLIP / ใบแจ้งเงินเดือน</h2>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-y-2 gap-x-8 mb-6 text-sm border p-4 border-gray-300">
+                                    <div><span className="font-semibold w-24 inline-block">ID:</span> {viewSlip.emp?.id}</div>
+                                    <div><span className="font-semibold w-24 inline-block">Period:</span> {months.find(m=>m.val == viewSlip.month)?.label} {viewSlip.year}</div>
+                                    <div><span className="font-semibold w-24 inline-block">Name:</span> {viewSlip.emp?.prefix} {viewSlip.emp?.name}</div>
+                                    <div><span className="font-semibold w-24 inline-block">Position:</span> {viewSlip.emp?.position}</div>
+                                    <div className="col-span-2"><span className="font-semibold w-24 inline-block">Bank/Acc:</span> {viewSlip.emp?.bankName} ({viewSlip.emp?.bankAccount})</div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-0 border border-gray-300 mb-6">
+                                    {/* EARNINGS */}
+                                    <div className="border-r border-gray-300">
+                                        <h3 className="font-bold border-b border-gray-300 bg-gray-100 p-2 text-center">Income (รายการเงินได้)</h3>
+                                        <div className="p-2 space-y-1 min-h-[150px]">
+                                            <div className="flex justify-between"><span>Base Salary</span><span>{formatCurrency(viewSlip.baseSalary)}</span></div>
+                                            
+                                            {/* Legacy records support */}
+                                            {viewSlip.otPay > 0 && <div className="flex justify-between"><span>OT ({viewSlip.otHours}h)</span><span>{formatCurrency(viewSlip.otPay)}</span></div>}
+                                            {viewSlip.caseTraining1 > 0 && <div className="flex justify-between"><span>Training (≤1)</span><span>{formatCurrency(viewSlip.caseTraining1)}</span></div>}
+                                            {viewSlip.caseTraining2 > 0 && <div className="flex justify-between"><span>Training (>1)</span><span>{formatCurrency(viewSlip.caseTraining2)}</span></div>}
+                                            
+                                            {/* New dynamic records */}
+                                            {viewSlip.calculatedIncomes?.map((inc,i) => <div key={'calc_i'+i} className="flex justify-between"><span>{inc.name} {inc.qty ? `(${inc.qty} x ${inc.rate})` : ''}</span><span>{formatCurrency(inc.amount)}</span></div>)}
+                                            
+                                            {viewSlip.customEarnings?.map((e,i) => <div key={i} className="flex justify-between"><span>{e.name}</span><span>{formatCurrency(e.amount)}</span></div>)}
+                                        </div>
+                                    </div>
+                                    {/* DEDUCTIONS */}
+                                    <div>
+                                        <h3 className="font-bold border-b border-gray-300 bg-gray-100 p-2 text-center">Deductions (รายการเงินหัก)</h3>
+                                        <div className="p-2 space-y-1 min-h-[150px]">
+                                            {/* Legacy records support */}
+                                            {viewSlip.ssDeduction > 0 && <div className="flex justify-between"><span>Social Security</span><span>{formatCurrency(viewSlip.ssDeduction)}</span></div>}
+                                            {viewSlip.taxDeduction > 0 && <div className="flex justify-between"><span>Tax</span><span>{formatCurrency(viewSlip.taxDeduction)}</span></div>}
+                                            
+                                            {/* New dynamic records */}
+                                            {viewSlip.calculatedDeductions?.map((ded,i) => <div key={'calc_d'+i} className="flex justify-between"><span>{ded.name} {ded.qty ? `(${ded.qty} x ${ded.rate})` : ''}</span><span>{formatCurrency(ded.amount)}</span></div>)}
+
+                                            {viewSlip.customDeductions?.map((d,i) => <div key={i} className="flex justify-between"><span>{d.name}</span><span>{formatCurrency(d.amount)}</span></div>)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center bg-gray-100 border border-gray-300 p-4 mb-4 font-bold text-lg">
+                                    <div>Net Pay (รับสุทธิ)</div>
+                                    <div className="text-xl underline">{formatCurrency(viewSlip.netPay)}</div>
+                                </div>
+                                <div className="text-center italic text-sm text-gray-700 font-bold bg-gray-50 p-2 border border-gray-300 rounded mb-12">
+                                    ({ThaiBahtText(viewSlip.netPay)})
+                                </div>
+
+                                <div className="flex flex-col mt-12">
+                                    <div className="flex justify-end pr-8">
+                                        <div className="text-center">
+                                            <div className="text-sm mb-2">นางสาวสุทธิพร สมเนตร</div>
+                                            <div className="border-b border-black w-48 mx-auto mb-2"></div>
+                                            <div className="text-xs font-bold">ผู้จ่ายเงิน</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-center text-xs text-gray-500 mt-12 mb-2">
+                                        เอกสารฉบับนี้ออกโดยระบบอัตโนมัติ
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex justify-center no-print">
+                                    <button onClick={triggerPrint} className="flex items-center gap-2 bg-[#c8a97e] text-white px-8 py-2 rounded-lg hover:bg-[#b3956b] shadow-lg">
+                                        <Icons.Print /> Print Payslip
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
+                </div>
+            );
+        };
+
+        const Settings = () => {
+            const { data, t, updateRecord, forceRefresh, isSyncing } = useContext(AppContext);
+            const [settings, setSettings] = useState(data.settings);
+            
+            const update = (f, v) => setSettings({...settings, [f]: v});
+            
+            const handleSave = () => {
+                updateRecord('settings', null, settings);
+                SwalAlert.fire('Saved', '', 'success');
+            };
+
+            const addPayrollItem = (type) => {
+                setSettings({ ...settings, [type]: [...(settings[type]||[]), { id: type+'_'+Date.now(), name: '', type: 'fixed', rate: 0, max: '' }] });
+            };
+            const updatePayrollItem = (type, index, field, value) => {
+                const arr = [...(settings[type]||[])];
+                arr[index][field] = (field === 'rate' || field === 'max') && value !== '' ? parseFloat(value) : value;
+                setSettings({...settings, [type]: arr});
+            };
+            const removePayrollItem = (type, index) => {
+                const arr = [...(settings[type]||[])];
+                arr.splice(index, 1);
+                setSettings({...settings, [type]: arr});
+            };
+
+            const addLeaveType = () => {
+                setSettings({...settings, leaveTypes: [...settings.leaveTypes, {name: 'New Leave', quota: 0}]});
+            };
+            const updateLT = (index, field, value) => {
+                const arr = [...settings.leaveTypes];
+                arr[index][field] = field === 'quota' ? (parseInt(value)||0) : value;
+                setSettings({...settings, leaveTypes: arr});
+            };
+            const removeLT = (index) => {
+                const arr = [...settings.leaveTypes];
+                arr.splice(index, 1);
+                setSettings({...settings, leaveTypes: arr});
+            };
+
+            return (
+                <div className="max-w-4xl space-y-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold">{t('settings')}</h2>
+                        <div className="flex gap-2">
+                            <button onClick={forceRefresh} disabled={isSyncing} className="bg-white dark:bg-gray-800 border dark:border-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg flex items-center gap-1 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition"><span className={isSyncing ? "animate-spin text-[#c8a97e]" : "text-[#c8a97e]"}><Icons.Refresh /></span> {t('force_refresh')}</button>
+                            <button onClick={handleSave} className="bg-[#c8a97e] text-white px-6 py-2 rounded-lg hover:bg-[#b3956b] shadow-md">{t('save_changes')}</button>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <h3 className="font-bold mb-4 border-b dark:border-gray-700 pb-2 text-lg">{t('company_info')}</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="block text-sm mb-1 text-gray-500">Company Name</label><input value={settings.companyName} onChange={e=>update('companyName', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
+                            <div><label className="block text-sm mb-1 text-gray-500">{t('logo_url')}</label><input value={settings.logoUrl || ''} onChange={e=>update('logoUrl', e.target.value)} placeholder="https://..." className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
+                            <div><label className="block text-sm mb-1 text-gray-500">Phone</label><input value={settings.phone} onChange={e=>update('phone', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
+                            <div className="col-span-2"><label className="block text-sm mb-1 text-gray-500">Address</label><input value={settings.address} onChange={e=>update('address', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
+                            <div><label className="block text-sm mb-1 text-gray-500">HR Email</label><input value={settings.email} onChange={e=>update('email', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
+                            <div><label className="block text-sm mb-1 text-gray-500">Admin Notify Email</label><input value={settings.notifyEmail} onChange={e=>update('notifyEmail', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <h3 className="font-bold mb-4 border-b dark:border-gray-700 pb-2 text-lg">{t('payroll_settings')}</h3>
+                        
+                        {/* Incomes */}
+                        <div className="mb-8">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="font-semibold text-green-600 dark:text-green-400">{t('income_items')}</h4>
+                                <button onClick={()=>addPayrollItem('incomes')} className="text-sm bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded hover:bg-green-100 dark:hover:bg-green-800 transition">{t('add_income')}</button>
+                            </div>
+                            <div className="space-y-3">
+                                {(settings.incomes||[]).map((item, i) => (
+                                    <div key={item.id} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 dark:bg-gray-900 p-2 rounded border dark:border-gray-700">
+                                        <input placeholder={t('item_name')} value={item.name} onChange={e=>updatePayrollItem('incomes', i, 'name', e.target.value)} className="flex-1 min-w-[150px] border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm" />
+                                        <select value={item.type} onChange={e=>updatePayrollItem('incomes', i, 'type', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
+                                            <option value="fixed">{t('rate_fixed')}</option>
+                                            <option value="percent">{t('rate_percent')}</option>
+                                        </select>
+                                        <input type="number" placeholder={t('rate_value')} value={item.rate} onChange={e=>updatePayrollItem('incomes', i, 'rate', e.target.value)} className="w-24 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
+                                        {item.type === 'percent' && (
+                                            <input type="number" placeholder={t('max_limit')} value={item.max||''} onChange={e=>updatePayrollItem('incomes', i, 'max', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
+                                        )}
+                                        <button onClick={()=>removePayrollItem('incomes', i)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Icons.Trash/></button>
+                                    </div>
+                                ))}
+                                {(!settings.incomes || settings.incomes.length === 0) && <p className="text-sm text-gray-400 italic">ไม่มีรายการรับ...</p>}
+                            </div>
+                        </div>
+
+                        {/* Deductions */}
+                        <div>
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="font-semibold text-red-500 dark:text-red-400">{t('deduction_items')}</h4>
+                                <button onClick={()=>addPayrollItem('deductions')} className="text-sm bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-800 transition">{t('add_deduction')}</button>
+                            </div>
+                            <div className="space-y-3">
+                                {(settings.deductions||[]).map((item, i) => (
+                                    <div key={item.id} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 dark:bg-gray-900 p-2 rounded border dark:border-gray-700">
+                                        <input placeholder={t('item_name')} value={item.name} onChange={e=>updatePayrollItem('deductions', i, 'name', e.target.value)} className="flex-1 min-w-[150px] border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm" />
+                                        <select value={item.type} onChange={e=>updatePayrollItem('deductions', i, 'type', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
+                                            <option value="fixed">{t('rate_fixed')}</option>
+                                            <option value="percent">{t('rate_percent')}</option>
+                                        </select>
+                                        <input type="number" placeholder={t('rate_value')} value={item.rate} onChange={e=>updatePayrollItem('deductions', i, 'rate', e.target.value)} className="w-24 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
+                                        {item.type === 'percent' && (
+                                            <input type="number" placeholder={t('max_limit')} value={item.max||''} onChange={e=>updatePayrollItem('deductions', i, 'max', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
+                                        )}
+                                        <button onClick={()=>removePayrollItem('deductions', i)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Icons.Trash/></button>
+                                    </div>
+                                ))}
+                                {(!settings.deductions || settings.deductions.length === 0) && <p className="text-sm text-gray-400 italic">ไม่มีรายการหัก...</p>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <div className="flex justify-between items-center mb-4 border-b dark:border-gray-700 pb-2">
+                            <h3 className="font-bold text-lg">{t('leave_manage')}</h3>
+                            <button onClick={addLeaveType} className="text-[#c8a97e] text-sm flex items-center gap-1 hover:underline"><Icons.Plus/> {t('add_leave_type')}</button>
+                        </div>
+                        <div className="space-y-3">
+                            {settings.leaveTypes.map((lt, i) => (
+                                <div key={i} className="flex gap-4 items-center">
+                                    <input value={lt.name} onChange={e=>updateLT(i, 'name', e.target.value)} placeholder="Type Name" className="flex-1 border dark:border-gray-600 bg-transparent rounded p-2"/>
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-sm text-gray-500">{t('quota')}:</label>
+                                        <input type="number" value={lt.quota} onChange={e=>updateLT(i, 'quota', e.target.value)} className="w-24 border dark:border-gray-600 bg-transparent rounded p-2 text-center"/>
+                                    </div>
+                                    <button onClick={()=>removeLT(i)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900 rounded"><Icons.Trash/></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Layout = ({ children, setView, view, user, onLogout }) => {
+            const { t, lang, setLang, theme, setTheme } = useContext(AppContext);
+            const [sidebarOpen, setSidebarOpen] = useState(true);
+            const isAdmin = user.role === 'Admin';
+
+            const navItems = [
+                { id: 'dashboard', label: t('dashboard'), icon: Icons.Dashboard, show: isAdmin },
+                { id: 'employees', label: t('employees'), icon: Icons.Users, show: isAdmin },
+                { id: 'leave', label: t('leave_ot'), icon: Icons.Calendar, show: true },
+                { id: 'payroll', label: isAdmin ? t('payroll') : t('my_salary'), icon: Icons.Money, show: true },
+                { id: 'settings', label: t('settings'), icon: Icons.Settings, show: isAdmin }
+            ];
+
+            return (
+                <div className="flex h-screen overflow-hidden">
+                    <aside className={`bg-white dark:bg-gray-800 shadow-xl border-r dark:border-gray-700 transition-all duration-300 z-20 flex flex-col no-print ${sidebarOpen ? 'w-64' : 'w-20'}`}>
+                        <div className="h-16 flex items-center justify-between px-4 border-b dark:border-gray-700">
+                            {sidebarOpen && <span className="font-bold text-[#c8a97e] text-lg truncate tracking-wider">{t('app_name')}</span>}
+                            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-500 hover:text-[#c8a97e] p-1"><Icons.Menu /></button>
+                        </div>
+                        <nav className="flex-1 py-4 overflow-y-auto hide-scrollbar">
+                            <ul className="space-y-2 px-3">
+                                {navItems.filter(i => i.show).map(item => (
+                                    <li key={item.id}>
+                                        <button onClick={() => setView(item.id)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${view === item.id ? 'bg-gradient-to-r from-[#c8a97e] to-[#b3956b] text-white shadow-lg shadow-orange-900/20' : 'text-gray-600 dark:text-gray-300 hover:bg-[#e6dac8]/50 hover:text-[#b3956b] dark:hover:bg-gray-700'}`}>
+                                            <item.icon /> {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </nav>
+                        <div className="p-4 border-t dark:border-gray-700">
+                            <button onClick={onLogout} className={`w-full flex items-center gap-3 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors ${!sidebarOpen && 'justify-center'}`}>
+                                <Icons.Logout /> {sidebarOpen && <span className="text-sm font-medium">{t('logout')}</span>}
+                            </button>
+                        </div>
+                    </aside>
+
+                    <main className="flex-1 flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900 transition-colors">
+                        <header className="h-16 bg-white dark:bg-gray-800 shadow-sm flex items-center justify-between px-8 border-b dark:border-gray-700 z-10 no-print">
+                            <h1 className="text-2xl font-bold text-gray-800 dark:text-white capitalize tracking-wide">{t(view)}</h1>
+                            
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setLang(lang === 'th' ? 'en' : 'th')} className="flex items-center gap-1 font-bold text-gray-500 dark:text-gray-400 hover:text-[#c8a97e] transition">
+                                    <Icons.Lang /> {lang === 'th' ? 'EN' : 'TH'}
+                                </button>
+                                <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                                    {theme === 'light' ? <Icons.Moon /> : <Icons.Sun />}
+                                </button>
+                                <div className="flex items-center gap-3 border-l dark:border-gray-700 pl-4 ml-2">
+                                    <div className="text-right hidden sm:block">
+                                        <div className="text-sm font-bold text-gray-800 dark:text-white leading-tight">{user.username}</div>
+                                        <div className="text-xs text-[#c8a97e] font-medium">{user.role} {user.empId ? `(${user.empId})` : ''}</div>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#c8a97e] to-[#b3956b] shadow-md text-white flex items-center justify-center font-bold text-lg">
+                                        {user.username.charAt(0).toUpperCase()}
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+                        <div className="flex-1 overflow-y-auto p-8 relative">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none mix-blend-multiply dark:mix-blend-overlay"></div>
+                            <div className="relative z-10 max-w-7xl mx-auto">{children}</div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // ==========================================
+        // MAIN APP
+        // ==========================================
+        
+        // 🔴 นำ URL ของ Web App ที่ Deploy จาก Google Apps Script มาวางที่นี่
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwxRfp2bRszBmg7LguTAOy1oXPrsTb0Y2cxIJhFM_GQJJ6SP-uCktSdhiQU-mLrA1x-3Q/exec'; 
+
+        const App = () => {
+            const [theme, setTheme] = useState(() => localStorage.getItem('hrms_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+            const [lang, setLang] = useState(() => localStorage.getItem('hrms_lang') || 'th');
+            
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('dashboard');
+            const [loading, setLoading] = useState(false);
+            const [isSyncing, setIsSyncing] = useState(false);
+            
+            const [dataState, setDataState] = useState(() => {
+                const cached = localStorage.getItem('hrms_data');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    // Migrate old rates to dynamic incomes/deductions
+                    if (!parsed.settings.incomes && !parsed.settings.deductions) {
+                        parsed.settings.incomes = [{ id: 'inc_ot', name: 'ล่วงเวลา (OT)', type: 'fixed', rate: 200, max: '' }];
+                        parsed.settings.deductions = [
+                            { id: 'ded_ss', name: 'ประกันสังคม (SS)', type: 'percent', rate: 5, max: 750 },
+                            { id: 'ded_tax', name: 'ภาษี (Tax)', type: 'percent', rate: 3, max: '' }
+                        ];
+                    }
+                    return parsed;
+                }
+                return initialMockData;
+            });
+
+            useEffect(() => {
+                if (theme === 'dark') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+                localStorage.setItem('hrms_theme', theme);
+            }, [theme]);
+
+            useEffect(() => { localStorage.setItem('hrms_lang', lang); }, [lang]);
+
+            const t = (key) => i18n[lang][key] || key;
+
+            // ฟังก์ชันซิงค์ข้อมูลจาก Google Sheets (API)
+            const fetchFromGAS = async () => {
+                if (!GAS_URL || GAS_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+                    console.warn("ยังไม่ได้ใส่ GAS_URL ระบบจะรันในโหมด Mock/Offline");
+                    return new Promise((resolve) => { setTimeout(() => { resolve(dataState); setIsSyncing(false); }, 800); });
+                }
+                
+                setIsSyncing(true);
+                try {
+                    const response = await fetchWithTimeout(GAS_URL, {
+                        method: 'POST',
+                        redirect: 'follow', // ป้องกันปัญหาโดน Redirect
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({ action: 'SYNC' })
+                    }, 20000); // Timeout 20 วินาที
+
+                    const result = await response.json();
+                    
+                    if (result.status === 'success' && result.data) {
+                        let syncedData = result.data;
+                        if (!syncedData.settings) syncedData.settings = initialMockData.settings;
+                        
+                        // ป้องกันข้อมูลว่างเปล่าหากตารางเพิ่งสร้าง
+                        if (!syncedData.users || syncedData.users.length === 0) syncedData.users = initialMockData.users;
+                        
+                        setDataState(syncedData);
+                        localStorage.setItem('hrms_data', JSON.stringify(syncedData));
+                        return syncedData;
+                    } else {
+                        console.error("API Error:", result.message);
+                        if(result.message && result.message.includes('setupHRMS')) {
+                            SwalAlert.fire({ icon: 'error', title: 'ตั้งค่าฐานข้อมูลไม่สมบูรณ์', text: 'โปรดไปที่ Google Apps Script เลือกฟังก์ชัน "setupHRMS" แล้วกดปุ่ม "เรียกใช้" (Run) ก่อนครับ' });
+                        }
+                    }
+                } catch (e) {
+                    console.error("Network or Fetch Error:", e);
+                    // เงียบๆ ไว้ ปล่อยให้ระบบใช้แคชต่อหากเกิด Error
+                } finally {
+                    setIsSyncing(false);
+                }
+                return dataState;
+            };
+
+            const forceRefresh = async () => { 
+                await fetchFromGAS(); 
+                SwalAlert.fire({ title: 'Synced!', text: 'อัปเดตข้อมูลล่าสุดแล้ว', icon: 'success', timer: 1500, showConfirmButton: false });
+            };
+
+            useEffect(() => { 
+                if (!localStorage.getItem('hrms_data')) localStorage.setItem('hrms_data', JSON.stringify(initialMockData)); 
+                fetchFromGAS(); 
+            }, []);
+
+            const handleLogin = async (u, p) => {
+                setLoading(true);
+                const cleanU = u.trim().toLowerCase();
+                const cleanP = p.trim();
+
+                let currentUsers = dataState.users || [];
+                
+                // ตรวจสอบใน Cache ก่อน
+                let found = currentUsers.find(x => (x.username || '').toLowerCase() === cleanU && x.password === cleanP);
+                
+                // ถ้าหาไม่เจอ ให้บังคับดึงข้อมูลล่าสุดจาก Google Sheets อีกรอบ (แก้ปัญหา Cache)
+                if (!found) {
+                    const freshData = await fetchFromGAS();
+                    currentUsers = freshData?.users || [];
+                    found = currentUsers.find(x => (x.username || '').toLowerCase() === cleanU && x.password === cleanP);
+                }
+
+                if (found) { 
+                    setUser(found); 
+                    setView(found.role === 'Admin' ? 'dashboard' : 'leave'); 
+                } else { 
+                    SwalAlert.fire('Error', 'Invalid credentials / รหัสผ่านไม่ถูกต้อง (ตรวจสอบชื่อผู้ใช้และรหัสผ่านจากฐานข้อมูล)', 'error'); 
+                }
+                setLoading(false);
+            };
+
+            const persistData = (newState) => { setDataState(newState); localStorage.setItem('hrms_data', JSON.stringify(newState)); };
+
+            // ระบบส่งคำสั่งเพิ่ม/แก้ไข/ลบ ไปยัง Google Sheets
+            const contextValue = {
+                data: dataState, user, isSyncing, forceRefresh, lang, setLang, theme, setTheme, t,
+                
+                addRecord: (table, record) => {
+                    const newState = { ...dataState, [table]: [...(dataState[table]||[]), record] };
+                    persistData(newState);
+                    if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+                        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'ADD_RECORD', table, record }) }).catch(e => console.error("Add Error", e));
+                    }
+                },
+                
+                updateRecord: (table, id, updates) => {
+                    if (table === 'settings') {
+                        const newState = { ...dataState, settings: updates };
+                        persistData(newState);
+                        if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+                            fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'UPDATE_SETTINGS', settings: updates }) }).catch(e => console.error("Update Settings Error", e));
+                        }
+                    } else {
+                        const newState = { ...dataState, [table]: dataState[table].map(item => item.id === id ? { ...item, ...updates } : item) };
+                        persistData(newState);
+                        if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+                            fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'UPDATE_RECORD', table, id, updates }) }).catch(e => console.error("Update Error", e));
+                        }
+                    }
+                },
+                
+                deleteRecord: (table, id) => {
+                    const newState = { ...dataState, [table]: dataState[table].filter(item => item.id !== id) };
+                    persistData(newState);
+                    if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+                        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'DELETE_RECORD', table, id }) }).catch(e => console.error("Delete Error", e));
+                    }
+                }
+            };
+
+            return (
+                <AppContext.Provider value={contextValue}>
+                    {!user ? <Login onLogin={handleLogin} loading={loading} /> : (
+                        <Layout setView={setView} view={view} user={user} onLogout={() => setUser(null)}>
+                            {view === 'dashboard' && <Dashboard />}
+                            {view === 'employees' && <EmployeeManagement />}
+                            {view === 'leave' && <LeaveOT />}
+                            {view === 'payroll' && <Payroll />}
+                            {view === 'settings' && <Settings />}
+                        </Layout>
+                    )}
+                </AppContext.Provider>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
