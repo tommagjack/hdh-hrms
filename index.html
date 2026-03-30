@@ -908,12 +908,20 @@
             const currentEmpId = String(user.empId || '').trim().toLowerCase();
             let rawRecords = isAdmin ? (data.salaryRecords || []) : (data.salaryRecords?.filter(r => String(r.empId || '').trim().toLowerCase() === currentEmpId) || []);
 
-            // Apply Filters & Sorting (Newest to Oldest)
+            // Apply Filters & Sorting (เรียงปีและเดือนจากล่าสุดไปเก่าสุด)
             const records = rawRecords
                 .filter(r => filterYear === 'All' || String(r.year) === String(filterYear))
                 .filter(r => filterMonth === 'All' || String(r.month) === String(filterMonth))
                 .filter(r => filterEmp === 'All' || String(r.empId).trim() === String(filterEmp).trim())
-                .sort((a, b) => new Date(b.date || `${b.year}-${b.month}-01`) - new Date(a.date || `${a.year}-${a.month}-01`));
+                .sort((a, b) => {
+                    const yearA = parseInt(a.year) || 0;
+                    const yearB = parseInt(b.year) || 0;
+                    if (yearB !== yearA) return yearB - yearA;
+                    
+                    const monthA = parseInt(a.month) || 0;
+                    const monthB = parseInt(b.month) || 0;
+                    return monthB - monthA;
+                });
 
             const uniqueYears = [...new Set(rawRecords.map(r => r.year))].sort((a,b)=>b-a);
 
