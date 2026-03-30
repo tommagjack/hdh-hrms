@@ -101,7 +101,7 @@
                 emp_type: 'ประเภทพนักงาน', full_time: 'พนักงานประจำ', part_time: 'พนักงานชั่วคราว',
                 phone: 'เบอร์โทรศัพท์', email: 'อีเมล', other: 'อื่นๆ', mr: 'นาย', ms: 'นางสาว', mrs: 'นาง',
                 age: 'อายุ', yrs: 'ปี', mos: 'เดือน', bank_kbank: 'กสิกรไทย (KBank)', bank_scb: 'ไทยพาณิชย์ (SCB)', bank_bbl: 'กรุงเทพ (BBL)', bank_ktb: 'กรุงไทย (KTB)', bank_bay: 'กรุงศรีอยุธยา (BAY)', bank_ttb: 'ทหารไทยธนชาต (TTB)', bank_gsb: 'ออมสิน (GSB)', bank_baac: 'ธ.ก.ส. (BAAC)',
-                logo_url: 'โลโก้ URL', payroll_settings: 'ตั้งค่ารายการรับและหัก', income_items: 'รายการรับ', deduction_items: 'รายการหัก', item_name: 'ชื่อรายการ', calc_type: 'ประเภทเรท', rate_fixed: 'คงที่', rate_percent: 'เปอร์เซ็นต์ (%)', rate_value: 'เรท/จำนวน', max_limit: 'ไม่เกิน (บาท)', add_income: '+ เพิ่มรายการรับ', add_deduction: '+ เพิ่มรายการหัก',
+                logo_url: 'โลโก้ URL', payroll_settings: 'ตั้งค่ารายการรับและหัก', income_items: 'รายการรับ', deduction_items: 'รายการหัก', item_name: 'ชื่อรายการ', calc_type: 'ประเภทเรท', rate_fixed: 'คงที่', rate_percent: 'เปอร์เซ็นต์ (%)', rate_multiplier: 'คูณรายชั่วโมง (x/hr)', rate_value: 'เรท/จำนวน', max_limit: 'ไม่เกิน (บาท)', add_income: '+ เพิ่มรายการรับ', add_deduction: '+ เพิ่มรายการหัก',
                 duration_mode: 'รูปแบบ', full_day: 'เต็มวัน', hourly: 'รายชั่วโมง',
                 filter_all: 'ทั้งหมด', year: 'ปี', month: 'เดือน'
             },
@@ -130,7 +130,7 @@
                 emp_type: 'Employee Type', full_time: 'Full-time', part_time: 'Part-time',
                 phone: 'Phone', email: 'Email', other: 'Other', mr: 'Mr.', ms: 'Ms.', mrs: 'Mrs.',
                 age: 'Age', yrs: 'yrs', mos: 'mos', bank_kbank: 'KBank', bank_scb: 'SCB', bank_bbl: 'BBL', bank_ktb: 'KTB', bank_bay: 'BAY', bank_ttb: 'TTB', bank_gsb: 'GSB', bank_baac: 'BAAC',
-                logo_url: 'Logo URL', payroll_settings: 'Income & Deduction Settings', income_items: 'Incomes', deduction_items: 'Deductions', item_name: 'Item Name', calc_type: 'Calc Type', rate_fixed: 'Fixed Rate', rate_percent: 'Percent (%)', rate_value: 'Rate/Value', max_limit: 'Max Limit (THB)', add_income: '+ Add Income', add_deduction: '+ Add Deduction',
+                logo_url: 'Logo URL', payroll_settings: 'Income & Deduction Settings', income_items: 'Incomes', deduction_items: 'Deductions', item_name: 'Item Name', calc_type: 'Calc Type', rate_fixed: 'Fixed Rate', rate_percent: 'Percent (%)', rate_multiplier: 'Hourly Multiplier', rate_value: 'Rate/Value', max_limit: 'Max Limit (THB)', add_income: '+ Add Income', add_deduction: '+ Add Deduction',
                 duration_mode: 'Mode', full_day: 'Full Day', hourly: 'Hourly',
                 filter_all: 'All', year: 'Year', month: 'Month'
             }
@@ -942,6 +942,15 @@
                         dynamicIncomesTotal += amt;
                         calcIncomes.push({ name: inc.name, amount: amt });
                     }
+                } else if (inc.type === 'multiplier') {
+                    const qty = parseFloat(calcForm.dynamicIncomes[inc.id]) || 0;
+                    if (qty > 0) {
+                        let hourlyRate = baseSalary / 240; // 30 วัน * 8 ชั่วโมง
+                        let amt = hourlyRate * inc.rate * qty;
+                        if (inc.max) amt = Math.min(amt, parseFloat(inc.max));
+                        dynamicIncomesTotal += amt;
+                        calcIncomes.push({ name: inc.name, amount: amt, qty, rate: `${inc.rate} เท่า` });
+                    }
                 } else {
                     const qty = parseFloat(calcForm.dynamicIncomes[inc.id]) || 0;
                     if (qty > 0) {
@@ -961,11 +970,20 @@
             (data.settings?.deductions || []).forEach(ded => {
                 if (ded.type === 'percent') {
                     if (calcForm.dynamicDeductions[ded.id] !== false) { 
-                        // เปลี่ยนจากคำนวณด้วย baseSalary เป็น earningsTotal
+                        // เปลี่ยนจากคำนวณด้วย baseSalary เป็น earningsTotal เพื่อคิดเปอร์เซ็นต์จากรายรับทั้งหมด
                         let amt = earningsTotal * (ded.rate / 100);
                         if (ded.max) amt = Math.min(amt, parseFloat(ded.max));
                         dynamicDeductionsTotal += amt;
                         calcDeductions.push({ name: ded.name, amount: amt });
+                    }
+                } else if (ded.type === 'multiplier') {
+                    const qty = parseFloat(calcForm.dynamicDeductions[ded.id]) || 0;
+                    if (qty > 0) {
+                        let hourlyRate = baseSalary / 240;
+                        let amt = hourlyRate * ded.rate * qty;
+                        if (ded.max) amt = Math.min(amt, parseFloat(ded.max));
+                        dynamicDeductionsTotal += amt;
+                        calcDeductions.push({ name: ded.name, amount: amt, qty, rate: `${ded.rate} เท่า` });
                     }
                 } else {
                     const qty = parseFloat(calcForm.dynamicDeductions[ded.id]) || 0;
@@ -1179,7 +1197,9 @@
                                             
                                             {(data.settings?.incomes || []).map(inc => (
                                                 <div key={inc.id} className="flex justify-between items-center text-sm mb-2">
-                                                    <span>{inc.name} <span className="text-gray-400 text-xs">{inc.type === 'percent' ? `(${inc.rate}%)` : `(${inc.rate})`}</span></span>
+                                                    <span>{inc.name} <span className="text-gray-400 text-xs">
+                                                        {inc.type === 'percent' ? `(${inc.rate}%)` : (inc.type === 'multiplier' ? `(${inc.rate} เท่า)` : `(${inc.rate})`)}
+                                                    </span></span>
                                                     {inc.type === 'percent' ? (
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-xs text-gray-400">Apply</span>
@@ -1187,8 +1207,10 @@
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center gap-2">
-                                                            <input type="number" placeholder="จำนวน" value={calcForm.dynamicIncomes[inc.id] || ''} onChange={e => setCalcForm({...calcForm, dynamicIncomes: {...calcForm.dynamicIncomes, [inc.id]: e.target.value}})} className="w-20 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-right" />
-                                                            <span className="text-gray-500 text-xs">x {inc.rate}</span>
+                                                            <input type="number" placeholder={inc.type === 'multiplier' ? "ชั่วโมง" : "จำนวน"} value={calcForm.dynamicIncomes[inc.id] || ''} onChange={e => setCalcForm({...calcForm, dynamicIncomes: {...calcForm.dynamicIncomes, [inc.id]: e.target.value}})} className="w-20 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-right" />
+                                                            <span className="text-gray-500 text-xs">
+                                                                {inc.type === 'multiplier' ? `x ${inc.rate} เท่า` : `x ${inc.rate}`}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1213,7 +1235,9 @@
                                             
                                             {(data.settings?.deductions || []).map(ded => (
                                                 <div key={ded.id} className="flex justify-between items-center text-sm mb-2">
-                                                    <span>{ded.name} <span className="text-gray-400 text-xs">{ded.type === 'percent' ? `(${ded.rate}%)` : `(${ded.rate})`}</span></span>
+                                                    <span>{ded.name} <span className="text-gray-400 text-xs">
+                                                        {ded.type === 'percent' ? `(${ded.rate}%)` : (ded.type === 'multiplier' ? `(${ded.rate} เท่า)` : `(${ded.rate})`)}
+                                                    </span></span>
                                                     {ded.type === 'percent' ? (
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-xs text-gray-400">Apply</span>
@@ -1221,8 +1245,10 @@
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center gap-2">
-                                                            <input type="number" placeholder="จำนวน" value={calcForm.dynamicDeductions[ded.id] || ''} onChange={e => setCalcForm({...calcForm, dynamicDeductions: {...calcForm.dynamicDeductions, [ded.id]: e.target.value}})} className="w-20 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-right" />
-                                                            <span className="text-gray-500 text-xs">x {ded.rate}</span>
+                                                            <input type="number" placeholder={ded.type === 'multiplier' ? "ชั่วโมง" : "จำนวน"} value={calcForm.dynamicDeductions[ded.id] || ''} onChange={e => setCalcForm({...calcForm, dynamicDeductions: {...calcForm.dynamicDeductions, [ded.id]: e.target.value}})} className="w-20 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 text-right" />
+                                                            <span className="text-gray-500 text-xs">
+                                                                {ded.type === 'multiplier' ? `x ${ded.rate} เท่า` : `x ${ded.rate}`}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1418,9 +1444,10 @@
                                 {(settings.incomes||[]).map((item, i) => (
                                     <div key={item.id} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 dark:bg-gray-900 p-2 rounded border dark:border-gray-700">
                                         <input placeholder={t('item_name')} value={item.name} onChange={e=>updatePayrollItem('incomes', i, 'name', e.target.value)} className="flex-1 min-w-[150px] border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm" />
-                                        <select value={item.type} onChange={e=>updatePayrollItem('incomes', i, 'type', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
+                                        <select value={item.type} onChange={e=>updatePayrollItem('incomes', i, 'type', e.target.value)} className="w-36 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
                                             <option value="fixed">{t('rate_fixed')}</option>
                                             <option value="percent">{t('rate_percent')}</option>
+                                            <option value="multiplier">{t('rate_multiplier')}</option>
                                         </select>
                                         <input type="number" placeholder={t('rate_value')} value={item.rate} onChange={e=>updatePayrollItem('incomes', i, 'rate', e.target.value)} className="w-24 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
                                         {item.type === 'percent' && (
@@ -1443,9 +1470,10 @@
                                 {(settings.deductions||[]).map((item, i) => (
                                     <div key={item.id} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 dark:bg-gray-900 p-2 rounded border dark:border-gray-700">
                                         <input placeholder={t('item_name')} value={item.name} onChange={e=>updatePayrollItem('deductions', i, 'name', e.target.value)} className="flex-1 min-w-[150px] border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm" />
-                                        <select value={item.type} onChange={e=>updatePayrollItem('deductions', i, 'type', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
+                                        <select value={item.type} onChange={e=>updatePayrollItem('deductions', i, 'type', e.target.value)} className="w-36 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
                                             <option value="fixed">{t('rate_fixed')}</option>
                                             <option value="percent">{t('rate_percent')}</option>
+                                            <option value="multiplier">{t('rate_multiplier')}</option>
                                         </select>
                                         <input type="number" placeholder={t('rate_value')} value={item.rate} onChange={e=>updatePayrollItem('deductions', i, 'rate', e.target.value)} className="w-24 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
                                         {item.type === 'percent' && (
