@@ -978,8 +978,11 @@
             (data.settings?.deductions || []).forEach(ded => {
                 if (ded.type === 'percent') {
                     if (calcForm.dynamicDeductions[ded.id] !== false) { 
-                        // เปลี่ยนจากคำนวณด้วย baseSalary เป็น earningsTotal เพื่อคิดเปอร์เซ็นต์จากรายรับทั้งหมด
-                        let amt = earningsTotal * (ded.rate / 100);
+                        // ตรวจสอบว่าเป็นประกันสังคมหรือไม่ ถ้าใช่ให้คิดจากเงินเดือนพื้นฐาน ถ้าไม่ใช่ให้คิดจากรายรับรวมทั้งหมด
+                        const isSocialSecurity = ded.id === 'ded_ss' || ded.name.includes('ประกันสังคม');
+                        const baseForCalc = isSocialSecurity ? baseSalary : earningsTotal;
+
+                        let amt = baseForCalc * (ded.rate / 100);
                         if (ded.max) amt = Math.min(amt, parseFloat(ded.max));
                         dynamicDeductionsTotal += amt;
                         calcDeductions.push({ name: ded.name, amount: amt });
