@@ -101,7 +101,7 @@
         // ==========================================
         const i18n = {
             th: {
-                app_name: 'Hug Dee Home', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
+                app_name: 'HDH HRMS', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
                 username: 'ชื่อผู้ใช้', password: 'รหัสผ่าน', signin: 'เข้าสู่ระบบ',
                 dashboard: 'แดชบอร์ด', employees: 'พนักงาน', leave_ot: 'การลา & OT', payroll: 'เงินเดือน', my_salary: 'เงินเดือนของฉัน', settings: 'ตั้งค่า', logout: 'ออกจากระบบ',
                 force_refresh: 'ซิงค์ข้อมูล', syncing: 'กำลังซิงค์...',
@@ -1515,63 +1515,13 @@
                             <div><label className="block text-sm mb-1 text-gray-500">{t('logo_url')}</label><input value={settings.logoUrl || ''} onChange={e=>update('logoUrl', e.target.value)} placeholder="https://..." className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
                             <div><label className="block text-sm mb-1 text-gray-500">Phone</label><input value={settings.phone} onChange={e=>update('phone', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
                             <div className="col-span-2"><label className="block text-sm mb-1 text-gray-500">Address</label><input value={settings.address} onChange={e=>update('address', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
-                            <div><label className="block text-sm mb-1 text-gray-500">HR Email</label><input value={settings.email} onChange={e=>update('email', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
-                            <div><label className="block text-sm mb-1 text-gray-500">Admin Notify Email</label><input value={settings.notifyEmail} onChange={e=>update('notifyEmail', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/></div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                        <h3 className="font-bold mb-4 border-b dark:border-gray-700 pb-2 text-lg">{t('payroll_settings')}</h3>
-                        
-                        {/* Incomes */}
-                        <div className="mb-8">
-                            <div className="flex justify-between items-center mb-3">
-                                <h4 className="font-semibold text-green-600 dark:text-green-400">{t('income_items')}</h4>
-                                <button onClick={()=>addPayrollItem('incomes')} className="text-sm bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded hover:bg-green-100 dark:hover:bg-green-800 transition">{t('add_income')}</button>
+                            <div>
+                                <label className="block text-sm mb-1 text-gray-500">HR Email <span className="text-xs text-gray-400 font-normal">(คั่นด้วย , หากมีหลายอีเมล)</span></label>
+                                <input type="text" value={settings.email} onChange={e=>update('email', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/>
                             </div>
-                            <div className="space-y-3">
-                                {(settings.incomes||[]).map((item, i) => (
-                                    <div key={item.id} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 dark:bg-gray-900 p-2 rounded border dark:border-gray-700">
-                                        <input placeholder={t('item_name')} value={item.name} onChange={e=>updatePayrollItem('incomes', i, 'name', e.target.value)} className="flex-1 min-w-[150px] border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm" />
-                                        <select value={item.type} onChange={e=>updatePayrollItem('incomes', i, 'type', e.target.value)} className="w-36 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
-                                            <option value="fixed">{t('rate_fixed')}</option>
-                                            <option value="percent">{t('rate_percent')}</option>
-                                            <option value="multiplier">{t('rate_multiplier')}</option>
-                                        </select>
-                                        <input type="number" placeholder={t('rate_value')} value={item.rate} onChange={e=>updatePayrollItem('incomes', i, 'rate', e.target.value)} className="w-24 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
-                                        {item.type === 'percent' && (
-                                            <input type="number" placeholder={t('max_limit')} value={item.max||''} onChange={e=>updatePayrollItem('incomes', i, 'max', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
-                                        )}
-                                        <button onClick={()=>removePayrollItem('incomes', i)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Icons.Trash/></button>
-                                    </div>
-                                ))}
-                                {(!settings.incomes || settings.incomes.length === 0) && <p className="text-sm text-gray-400 italic">ไม่มีรายการรับ...</p>}
-                            </div>
-                        </div>
-
-                        {/* Deductions */}
-                        <div>
-                            <div className="flex justify-between items-center mb-3">
-                                <h4 className="font-semibold text-red-500 dark:text-red-400">{t('deduction_items')}</h4>
-                                <button onClick={()=>addPayrollItem('deductions')} className="text-sm bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-3 py-1 rounded hover:bg-red-100 dark:hover:bg-red-800 transition">{t('add_deduction')}</button>
-                            </div>
-                            <div className="space-y-3">
-                                {(settings.deductions||[]).map((item, i) => (
-                                    <div key={item.id} className="flex gap-2 items-center flex-wrap md:flex-nowrap bg-gray-50 dark:bg-gray-900 p-2 rounded border dark:border-gray-700">
-                                        <input placeholder={t('item_name')} value={item.name} onChange={e=>updatePayrollItem('deductions', i, 'name', e.target.value)} className="flex-1 min-w-[150px] border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm" />
-                                        <select value={item.type} onChange={e=>updatePayrollItem('deductions', i, 'type', e.target.value)} className="w-36 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm">
-                                            <option value="fixed">{t('rate_fixed')}</option>
-                                            <option value="percent">{t('rate_percent')}</option>
-                                            <option value="multiplier">{t('rate_multiplier')}</option>
-                                        </select>
-                                        <input type="number" placeholder={t('rate_value')} value={item.rate} onChange={e=>updatePayrollItem('deductions', i, 'rate', e.target.value)} className="w-24 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
-                                        {item.type === 'percent' && (
-                                            <input type="number" placeholder={t('max_limit')} value={item.max||''} onChange={e=>updatePayrollItem('deductions', i, 'max', e.target.value)} className="w-32 border dark:border-gray-600 bg-white dark:bg-gray-800 rounded p-2 text-sm text-right" />
-                                        )}
-                                        <button onClick={()=>removePayrollItem('deductions', i)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Icons.Trash/></button>
-                                    </div>
-                                ))}
-                                {(!settings.deductions || settings.deductions.length === 0) && <p className="text-sm text-gray-400 italic">ไม่มีรายการหัก...</p>}
+                            <div>
+                                <label className="block text-sm mb-1 text-gray-500">Admin Notify Email <span className="text-xs text-gray-400 font-normal">(คั่นด้วย , หากมีหลายอีเมล)</span></label>
+                                <input type="text" value={settings.notifyEmail} onChange={e=>update('notifyEmail', e.target.value)} className="w-full border dark:border-gray-600 bg-transparent rounded p-2"/>
                             </div>
                         </div>
                     </div>
