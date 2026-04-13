@@ -740,57 +740,107 @@
                 });
             };
 
-            const Table = ({ reqs, showName = false, isPendingTab = false, allowEditDelete = false }) => (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <table className="w-full text-left border-collapse text-sm">
-                        <thead>
-                            <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300">
-                                {showName && <th className="p-4">{t('employee')}</th>}<th className="p-4">{t('type')}</th><th className="p-4">{t('from_to')}</th><th className="p-4">{t('hours')}</th><th className="p-4">{t('status')}</th><th className="p-4 text-center">{t('action')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {reqs.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500 dark:text-gray-400">{t('no_pending')}</td></tr>}
-                            {reqs.map(r => {
-                                const matchedEmp = data.employees?.find(e => String(e.id).trim().toLowerCase() === String(r.empId).trim().toLowerCase());
-                                return (
-                                    <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                        {showName && <td className="p-4">{matchedEmp?.name || r.empId}</td>}
-                                        <td className="p-4 font-semibold">{r.type} <span className="text-xs font-normal text-gray-500">({r.subtype})</span></td>
-                                        <td className="p-4">
-                                            {new Date(r.startDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })} <br/>
-                                            <span className="text-xs text-gray-400">
-                                                {r.durationMode === 'full' || (r.startDate && r.startDate.length <= 10 && !r.startDate.includes('T'))
-                                                    ? (r.startDate === r.endDate ? t('full_day') : `${new Date(r.startDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })} - ${new Date(r.endDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })}`)
-                                                    : `${new Date(r.startDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${new Date(r.endDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`
-                                                }
-                                            </span>
-                                        </td>
-                                        <td className="p-4">{r.type==='Leave' ? (parseFloat(r.hours)/8).toFixed(1)+' '+t('days') : r.hours+' hrs'}</td>
-                                        <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${r.status==='Approved'?'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200': r.status==='Rejected'?'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200':'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200'}`}>{r.status}</span></td>
-                                        <td className="p-4 flex justify-center gap-2">
-                                            {isPendingTab && r.status === 'Pending' && (
-                                                <>
-                                                    <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Approved'})} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><Icons.Check /></button>
-                                                    <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Rejected'})} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><Icons.X /></button>
-                                                </>
-                                            )}
-                                            {allowEditDelete && (isAdmin || r.status === 'Pending') && (
-                                                <>
-                                                    <button onClick={()=>handleEdit(r)} className="p-1.5 bg-yellow-50 text-yellow-600 rounded hover:bg-yellow-100"><Icons.Edit /></button>
-                                                    <button onClick={()=>handleDelete(r.id)} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100"><Icons.Trash /></button>
-                                                </>
-                                            )}
-                                            {allowEditDelete && !isAdmin && r.status !== 'Pending' && (
-                                                <button onClick={() => SwalAlert.fire({title: 'รายละเอียดคำร้อง', html: `<div class="text-left mt-4 text-sm"><p><b>สถานะ:</b> ${r.status}</p><p><b>ประเภท:</b> ${r.subtype}</p><p><b>เหตุผล:</b> ${r.reason}</p></div>`, icon: r.status === 'Approved' ? 'success' : 'error'})} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Icons.Eye /></button>
-                                            )}
-                                        </td>
+            const Table = ({ reqs, showName = false, isPendingTab = false, allowEditDelete = false }) => {
+                const [currentPage, setCurrentPage] = useState(1);
+                const itemsPerPage = 10;
+
+                // รีเซ็ตกลับไปหน้า 1 เมื่อข้อมูลเปลี่ยนหรือสลับแท็บ
+                useEffect(() => {
+                    setCurrentPage(1);
+                }, [reqs.length, isPendingTab]);
+
+                const totalPages = Math.ceil(reqs.length / itemsPerPage);
+                const indexOfLastItem = currentPage * itemsPerPage;
+                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                const currentReqs = reqs.slice(indexOfFirstItem, indexOfLastItem);
+
+                return (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300">
+                                        {showName && <th className="p-4 whitespace-nowrap">{t('employee')}</th>}
+                                        <th className="p-4 whitespace-nowrap">{t('type')}</th>
+                                        <th className="p-4 whitespace-nowrap">{t('from_to')}</th>
+                                        <th className="p-4 whitespace-nowrap">{t('hours')}</th>
+                                        <th className="p-4 whitespace-nowrap">{t('status')}</th>
+                                        <th className="p-4 text-center whitespace-nowrap">{t('action')}</th>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            );
+                                </thead>
+                                <tbody>
+                                    {currentReqs.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-500 dark:text-gray-400">{t('no_pending')}</td></tr>}
+                                    {currentReqs.map(r => {
+                                        const matchedEmp = data.employees?.find(e => String(e.id).trim().toLowerCase() === String(r.empId).trim().toLowerCase());
+                                        return (
+                                            <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                                {showName && <td className="p-4">{matchedEmp?.name || r.empId}</td>}
+                                                <td className="p-4 font-semibold">{r.type} <span className="text-xs font-normal text-gray-500">({r.subtype})</span></td>
+                                                <td className="p-4">
+                                                    {new Date(r.startDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })} <br/>
+                                                    <span className="text-xs text-gray-400">
+                                                        {r.durationMode === 'full' || (r.startDate && r.startDate.length <= 10 && !r.startDate.includes('T'))
+                                                            ? (r.startDate === r.endDate ? t('full_day') : `${new Date(r.startDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })} - ${new Date(r.endDate).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })}`)
+                                                            : `${new Date(r.startDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${new Date(r.endDate).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`
+                                                        }
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">{r.type==='Leave' ? (parseFloat(r.hours)/8).toFixed(1)+' '+t('days') : r.hours+' hrs'}</td>
+                                                <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${r.status==='Approved'?'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200': r.status==='Rejected'?'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200':'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200'}`}>{r.status}</span></td>
+                                                <td className="p-4 flex justify-center gap-2">
+                                                    {isPendingTab && r.status === 'Pending' && (
+                                                        <>
+                                                            <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Approved'})} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><Icons.Check /></button>
+                                                            <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Rejected'})} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><Icons.X /></button>
+                                                        </>
+                                                    )}
+                                                    {allowEditDelete && (isAdmin || r.status === 'Pending') && (
+                                                        <>
+                                                            <button onClick={()=>handleEdit(r)} className="p-1.5 bg-yellow-50 text-yellow-600 rounded hover:bg-yellow-100"><Icons.Edit /></button>
+                                                            <button onClick={()=>handleDelete(r.id)} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100"><Icons.Trash /></button>
+                                                        </>
+                                                    )}
+                                                    {allowEditDelete && !isAdmin && r.status !== 'Pending' && (
+                                                        <button onClick={() => SwalAlert.fire({title: 'รายละเอียดคำร้อง', html: `<div class="text-left mt-4 text-sm"><p><b>สถานะ:</b> ${r.status}</p><p><b>ประเภท:</b> ${r.subtype}</p><p><b>เหตุผล:</b> ${r.reason}</p></div>`, icon: r.status === 'Approved' ? 'success' : 'error'})} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"><Icons.Eye /></button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {/* Pagination UI สำหรับตารางการลา */}
+                        {totalPages > 1 && (
+                            <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 gap-4">
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    แสดง {indexOfFirstItem + 1} ถึง {Math.min(indexOfLastItem, reqs.length)} จาก {reqs.length} รายการ
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-600 text-sm transition"
+                                    >
+                                        ก่อนหน้า
+                                    </button>
+                                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2">
+                                        หน้า {currentPage} / {totalPages}
+                                    </div>
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-600 text-sm transition"
+                                    >
+                                        ถัดไป
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
 
             let requestedHours = 0;
             if (form.startDate && form.endDate) {
