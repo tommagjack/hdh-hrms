@@ -101,7 +101,7 @@
         // ==========================================
         const i18n = {
             th: {
-                app_name: 'Hug Dee Home', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
+                app_name: 'คลินิกพัฒนาการเด็กบ้านฮักดี', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
                 username: 'ชื่อผู้ใช้', password: 'รหัสผ่าน', signin: 'เข้าสู่ระบบ',
                 dashboard: 'แดชบอร์ด', employees: 'พนักงาน', leave_ot: 'การลา & OT', payroll: 'เงินเดือน', my_salary: 'เงินเดือนของฉัน', settings: 'ตั้งค่า', logout: 'ออกจากระบบ',
                 force_refresh: 'ซิงค์ข้อมูล', syncing: 'กำลังซิงค์...',
@@ -397,6 +397,12 @@
             const fileInputRef = useRef(null);
 
             useEffect(() => { setEmps(data.employees || []); }, [data.employees]);
+
+            const filteredEmps = emps.filter(e => 
+                (e.name || '').toLowerCase().includes(search.toLowerCase()) || 
+                (e.id || '').toLowerCase().includes(search.toLowerCase()) || 
+                (e.position || '').toLowerCase().includes(search.toLowerCase())
+            );
 
             const handleSave = async (e) => {
                 e.preventDefault();
@@ -827,6 +833,7 @@
                             </table>
                         </div>
                         
+                        {/* Pagination UI สำหรับตารางการลา */}
                         {totalPages > 1 && (
                             <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 gap-4">
                                 <div className="text-sm text-gray-500 dark:text-gray-400">
