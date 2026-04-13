@@ -46,11 +46,11 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* Print Styles - แก้ไขการจัดหน้าสลิปให้กึ่งกลางและพอดีกับ A4 */
+        /* Print Styles */
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 0; /* บังคับตั้งค่าขอบหน้ากระดาษเป็น None อัตโนมัติ */
+                margin: 0;
             }
             body, html { 
                 visibility: hidden; 
@@ -63,19 +63,19 @@
                 left: 0 !important; 
                 top: 0 !important; 
                 width: 100% !important; 
-                height: 100vh !important; /* บังคับให้เต็มความสูงกระดาษ */
+                height: 100vh !important; 
                 background: white !important; 
                 display: flex !important; 
                 flex-direction: column !important;
-                justify-content: center !important; /* จัดกึ่งกลางบน-ล่าง */
-                align-items: center !important; /* จัดกึ่งกลางซ้าย-ขวา */
+                justify-content: center !important;
+                align-items: center !important; 
                 visibility: visible !important;
                 z-index: 9999 !important;
             }
             .print-content { 
                 position: relative !important; 
                 width: 100% !important; 
-                max-width: 190mm !important; /* ขยายสัดส่วนความกว้างออกด้านข้าง */
+                max-width: 190mm !important; 
                 height: auto !important; 
                 max-height: none !important; 
                 overflow: visible !important; 
@@ -101,7 +101,7 @@
         // ==========================================
         const i18n = {
             th: {
-                app_name: 'Hug Dee Home HRMS', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
+                app_name: 'Hug Dee Home', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
                 username: 'ชื่อผู้ใช้', password: 'รหัสผ่าน', signin: 'เข้าสู่ระบบ',
                 dashboard: 'แดชบอร์ด', employees: 'พนักงาน', leave_ot: 'การลา & OT', payroll: 'เงินเดือน', my_salary: 'เงินเดือนของฉัน', settings: 'ตั้งค่า', logout: 'ออกจากระบบ',
                 force_refresh: 'ซิงค์ข้อมูล', syncing: 'กำลังซิงค์...',
@@ -246,10 +246,7 @@
         };
 
         const initialMockData = {
-            users: [{ id: 'u1', username: 'admin', password: 'password', role: 'Admin', empId: 'HDH001' }, { id: 'u2', username: 'employee', password: 'password', role: 'Employee', empId: 'HDH002' }],
-            employees: [{ id: 'HDH001', prefix: 'นาย', name: 'สมชาย รักดี', nickname: 'ชาย', empType: 'Full-time', idCard: '1234567890123', gender: 'Male', dob: '1985-05-15', phone: '081-2345678', email: 'somchai@hugdee.com', position: 'HR Manager', startDate: '2020-01-01', baseSalary: 45000, bankName: 'KBank', bankAccount: '123-4-56789-0', status: 'Active', customQuotas: {} }, { id: 'HDH002', prefix: 'นางสาว', name: 'สมศรี ขยันดี', nickname: 'ศรี', empType: 'Full-time', idCard: '9876543210987', gender: 'Female', dob: '1992-08-20', phone: '089-8765432', email: 'somsri@hugdee.com', position: 'Staff', startDate: '2023-03-15', baseSalary: 25000, bankName: 'SCB', bankAccount: '098-7-65432-1', status: 'Active', customQuotas: {} }],
-            leaveRequests: [],
-            salaryRecords: [],
+            users: [], employees: [], leaveRequests: [], salaryRecords: [],
             settings: { companyName: 'Hug Dee Home Clinic', logoUrl: '', address: '123 สุขุมวิท กรุงเทพฯ 10110', phone: '02-123-4567', email: 'hr@hugdee.com', notifyEmail: 'admin@hugdee.com', leaveTypes: [{ name: 'ป่วย (Sick)', quota: 30, access: 'all' }, { name: 'ลากิจ (Personal)', quota: 6, access: 'all' }, { name: 'พักร้อน (Vacation)', quota: 10, access: 'all' }], incomes: [{ id: 'inc_ot', name: 'ล่วงเวลา (OT)', type: 'fixed', rate: 200, max: '' }], deductions: [{ id: 'ded_ss', name: 'ประกันสังคม (SS)', type: 'percent', rate: 5, max: 750 }, { id: 'ded_tax', name: 'ภาษี (Tax)', type: 'percent', rate: 3, max: '' }] }
         };
 
@@ -321,8 +318,12 @@
             const totalExpenses = data.salaryRecords?.filter(r => r.year === currentYear && r.month === currentMonth).reduce((sum, r) => sum + r.netPay, 0) || 0;
 
             const handleApproveReject = (id, status) => {
-                SwalAlert.fire({ title: `Confirm`, text: `Set status to ${status}?`, icon: 'warning', showCancelButton: true }).then((res) => {
-                    if (res.isConfirmed) { updateRecord('leaveRequests', id, { status }); SwalAlert.fire('Success', '', 'success'); }
+                SwalAlert.fire({ title: `ยืนยัน`, text: `ต้องการเปลี่ยนสถานะเป็น ${status} ใช่หรือไม่?`, icon: 'warning', showCancelButton: true }).then(async (res) => {
+                    if (res.isConfirmed) { 
+                        SwalAlert.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
+                        await updateRecord('leaveRequests', id, { status }); 
+                        SwalAlert.fire('Success', 'ทำรายการสำเร็จ', 'success'); 
+                    }
                 });
             };
 
@@ -397,17 +398,16 @@
 
             useEffect(() => { setEmps(data.employees || []); }, [data.employees]);
 
-            const filteredEmps = emps.filter(e => e.name.toLowerCase().includes(search.toLowerCase()) || e.id.toLowerCase().includes(search.toLowerCase()) || e.position.toLowerCase().includes(search.toLowerCase()));
-
-            const handleSave = (e) => {
+            const handleSave = async (e) => {
                 e.preventDefault();
                 let finalPhone = formData.phone || '';
                 const cleanedPhone = finalPhone.replace(/\D/g, '');
                 if (cleanedPhone.length === 10) finalPhone = `${cleanedPhone.slice(0, 3)}-${cleanedPhone.slice(3)}`;
                 const dataToSave = { ...formData, phone: finalPhone };
 
+                SwalAlert.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
                 if (isEditMode) { 
-                    updateRecord('employees', dataToSave.id, dataToSave); 
+                    await updateRecord('employees', dataToSave.id, dataToSave); 
                 } else { 
                     if (!dataToSave.id || dataToSave.id.includes('Auto')) {
                         const existingIds = data.employees.map(emp => String(emp.id)).filter(id => id.toUpperCase().startsWith('HDH'));
@@ -422,9 +422,9 @@
                             return SwalAlert.fire('Error', 'รหัสพนักงานนี้มีอยู่ในระบบแล้ว', 'error');
                         }
                     }
-                    addRecord('employees', dataToSave); 
+                    await addRecord('employees', dataToSave); 
                 }
-                setShowForm(false); SwalAlert.fire('Saved!', '', 'success');
+                setShowForm(false); SwalAlert.fire('Saved!', 'บันทึกข้อมูลเรียบร้อย', 'success');
             };
 
             const calculateAge = (dob) => {
@@ -452,17 +452,19 @@
                 document.body.appendChild(link); link.click(); document.body.removeChild(link);
             };
 
-            const importCSV = (e) => {
+            const importCSV = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (evt) => {
+                reader.onload = async (evt) => {
                     const text = evt.target.result;
                     const rows = text.split('\n').filter(row => row.trim().length > 0);
                     if(rows.length < 2) return SwalAlert.fire('Error', 'ไม่พบข้อมูลในไฟล์ CSV', 'error');
 
                     const headers = rows[0].split(',').map(h => h.trim());
                     let added = 0, updated = 0;
+
+                    SwalAlert.fire({title: 'กำลังนำเข้าข้อมูล...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
 
                     for(let i = 1; i < rows.length; i++) {
                         const cols = rows[i].split(',').map(c => c.trim());
@@ -489,11 +491,11 @@
 
                         if (empObj.name) {
                             if (empObj.id && data.employees.find(ex => String(ex.id).trim().toLowerCase() === String(empObj.id).trim().toLowerCase())) {
-                                updateRecord('employees', empObj.id, empObj);
+                                await updateRecord('employees', empObj.id, empObj);
                                 updated++;
                             } else {
                                 if(!empObj.id) empObj.id = 'HDH' + Date.now().toString().slice(-4) + i;
-                                addRecord('employees', empObj);
+                                await addRecord('employees', empObj);
                                 added++;
                             }
                         }
@@ -546,8 +548,12 @@
                                                 <button onClick={() => setViewProfile(emp)} title={t('view')} className="p-1.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-200 rounded hover:bg-blue-100"><Icons.Eye /></button>
                                                 <button onClick={() => { setFormData(emp); setIsCustomPrefix(!['นาย','นางสาว','นาง','Mr.','Ms.','Mrs.'].includes(emp.prefix) && !!emp.prefix); setIsEditMode(true); setShowForm(true); }} title={t('edit_emp')} className="p-1.5 bg-yellow-50 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-200 rounded hover:bg-yellow-100"><Icons.Edit /></button>
                                                 <button onClick={() => {
-                                                    SwalAlert.fire({ title: t('delete')+'?', icon: 'warning', showCancelButton: true }).then(res => {
-                                                        if(res.isConfirmed){ deleteRecord('employees', emp.id); SwalAlert.fire('Deleted!', '', 'success'); }
+                                                    SwalAlert.fire({ title: t('delete')+'?', icon: 'warning', showCancelButton: true }).then(async res => {
+                                                        if(res.isConfirmed){ 
+                                                            SwalAlert.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
+                                                            await deleteRecord('employees', emp.id); 
+                                                            SwalAlert.fire('Deleted!', 'ลบข้อมูลสำเร็จ', 'success'); 
+                                                        }
                                                     });
                                                 }} title={t('delete')} className="p-1.5 bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-200 rounded hover:bg-red-100"><Icons.Trash /></button>
                                             </td>
@@ -663,7 +669,6 @@
 
             const myEmpId = String(user.empId || '').trim().toLowerCase();
             
-            // ฟังก์ชันสำหรับจัดเรียงข้อมูลจากใหม่ไปเก่า (อิงจากวันที่เริ่มลา)
             const sortReqsDesc = (reqs) => {
                 return [...reqs].sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
             };
@@ -676,7 +681,7 @@
                 return data.leaveRequests.filter(r => String(r.empId || '').trim().toLowerCase() === String(empId || '').trim().toLowerCase() && r.subtype === type && r.status === 'Approved' && new Date(r.startDate).getFullYear() === new Date().getFullYear()).reduce((sum, r) => sum + (parseFloat(r.hours)/8), 0);
             };
 
-            const handleSubmit = (e) => {
+            const handleSubmit = async (e) => {
                 e.preventDefault();
                 let hours = 0;
                 if (form.durationMode === 'full') {
@@ -710,11 +715,13 @@
                     }
                 }
 
+                SwalAlert.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
                 if (form.id) {
-                    updateRecord('leaveRequests', form.id, { ...form, hours: hours.toFixed(1) });
+                    await updateRecord('leaveRequests', form.id, { ...form, hours: hours.toFixed(1) });
                     SwalAlert.fire('Updated', 'แก้ไขข้อมูลสำเร็จ', 'success');
                 } else {
-                    addRecord('leaveRequests', { id: 'REQ'+Date.now(), ...form, hours: hours.toFixed(1), status: isAdmin ? 'Approved' : 'Pending', submittedAt: new Date().toISOString() });
+                    // แก้ไขการจัดเรียง Object เพื่อไม่ให้ id โดนเขียนทับด้วยค่าว่าง
+                    await addRecord('leaveRequests', { ...form, id: 'REQ'+Date.now(), hours: hours.toFixed(1), status: isAdmin ? 'Approved' : 'Pending', submittedAt: new Date().toISOString() });
                     SwalAlert.fire('Success', 'บันทึกข้อมูลสำเร็จ', 'success');
                 }
                 setShowForm(false);
@@ -735,16 +742,25 @@
             };
 
             const handleDelete = (id) => {
-                SwalAlert.fire({ title: 'ลบ/ยกเลิกรายการ?', text: 'คุณต้องการลบหรือยกเลิกรายการนี้ใช่หรือไม่', icon: 'warning', showCancelButton: true }).then(res => {
-                    if(res.isConfirmed){ deleteRecord('leaveRequests', id); SwalAlert.fire('Deleted!', 'ลบรายการสำเร็จ', 'success'); }
+                SwalAlert.fire({ title: 'ลบ/ยกเลิกรายการ?', text: 'คุณต้องการลบหรือยกเลิกรายการนี้ใช่หรือไม่', icon: 'warning', showCancelButton: true }).then(async res => {
+                    if(res.isConfirmed){ 
+                        SwalAlert.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
+                        await deleteRecord('leaveRequests', id); 
+                        SwalAlert.fire('Deleted!', 'ลบรายการสำเร็จ', 'success'); 
+                    }
                 });
+            };
+
+            const changeStatus = async (id, status) => {
+                SwalAlert.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
+                await updateRecord('leaveRequests', id, {status});
+                SwalAlert.fire('Success', 'อัปเดตสถานะแล้ว', 'success');
             };
 
             const Table = ({ reqs, showName = false, isPendingTab = false, allowEditDelete = false }) => {
                 const [currentPage, setCurrentPage] = useState(1);
                 const itemsPerPage = 10;
 
-                // รีเซ็ตกลับไปหน้า 1 เมื่อข้อมูลเปลี่ยนหรือสลับแท็บ
                 useEffect(() => {
                     setCurrentPage(1);
                 }, [reqs.length, isPendingTab]);
@@ -790,8 +806,8 @@
                                                 <td className="p-4 flex justify-center gap-2">
                                                     {isPendingTab && r.status === 'Pending' && (
                                                         <>
-                                                            <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Approved'})} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><Icons.Check /></button>
-                                                            <button onClick={()=>updateRecord('leaveRequests', r.id, {status:'Rejected'})} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><Icons.X /></button>
+                                                            <button onClick={()=>changeStatus(r.id, 'Approved')} className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200"><Icons.Check /></button>
+                                                            <button onClick={()=>changeStatus(r.id, 'Rejected')} className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"><Icons.X /></button>
                                                         </>
                                                     )}
                                                     {allowEditDelete && (isAdmin || r.status === 'Pending') && (
@@ -811,7 +827,6 @@
                             </table>
                         </div>
                         
-                        {/* Pagination UI สำหรับตารางการลา */}
                         {totalPages > 1 && (
                             <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 gap-4">
                                 <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -1130,11 +1145,12 @@
                 setShowCalc(true);
             };
 
-            const handleSaveRecord = () => {
+            const handleSaveRecord = async () => {
                 const record = { ...calcForm, baseSalary, calculatedIncomes: calcIncomes, calculatedDeductions: calcDeductions, netPay, date: new Date().toISOString() };
                 
+                SwalAlert.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
                 if (calcForm.id) {
-                    updateRecord('salaryRecords', calcForm.id, record);
+                    await updateRecord('salaryRecords', calcForm.id, record);
                     setShowCalc(false); 
                     SwalAlert.fire('Updated', 'อัปเดตข้อมูลสำเร็จ', 'success');
                 } else {
@@ -1142,7 +1158,7 @@
                     if (exists) return SwalAlert.fire('Warning', 'เดือนนี้มีข้อมูลเงินเดือนของพนักงานท่านนี้แล้ว', 'warning');
 
                     record.id = 'PAY' + Date.now();
-                    addRecord('salaryRecords', record);
+                    await addRecord('salaryRecords', record);
                     setShowCalc(false); 
                     SwalAlert.fire('Saved', 'เพิ่มข้อมูลสำเร็จ', 'success');
                 }
@@ -1166,17 +1182,19 @@
                 document.body.appendChild(link); link.click(); document.body.removeChild(link);
             };
 
-            const importCSV = (e) => {
+            const importCSV = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (evt) => {
+                reader.onload = async (evt) => {
                     const text = evt.target.result;
                     const rows = text.split('\n').filter(row => row.trim().length > 0);
                     if(rows.length < 2) return SwalAlert.fire('Error', 'ไม่พบข้อมูลในไฟล์ CSV', 'error');
 
                     const headers = rows[0].split(',').map(h => h.trim());
                     let added = 0, updated = 0;
+
+                    SwalAlert.fire({title: 'กำลังนำเข้าข้อมูล...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
 
                     for(let i = 1; i < rows.length; i++) {
                         const cols = rows[i].split(',').map(c => c.trim());
@@ -1194,12 +1212,12 @@
                         };
 
                         if (payObj.empId) {
-                            if (payObj.id && data.salaryRecords.find(ex => ex.id === payObj.id)) {
-                                updateRecord('salaryRecords', payObj.id, payObj);
+                            if (payObj.id && data.salaryRecords.find(ex => String(ex.id).trim().toLowerCase() === String(payObj.id).trim().toLowerCase())) {
+                                await updateRecord('salaryRecords', payObj.id, payObj);
                                 updated++;
                             } else {
                                 if(!payObj.id) payObj.id = 'PAY' + Date.now().toString().slice(-4) + i; 
-                                addRecord('salaryRecords', payObj);
+                                await addRecord('salaryRecords', payObj);
                                 added++;
                             }
                         }
@@ -1284,8 +1302,12 @@
                                                 <button onClick={() => setViewSlip({...r, emp})} className="px-3 py-1 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-200 rounded text-xs flex items-center gap-1"><Icons.Eye /> Slip</button>
                                                 {isAdmin && <button onClick={() => handleEditClick(r)} className="p-1.5 bg-yellow-50 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-200 rounded hover:bg-yellow-100"><Icons.Edit /></button>}
                                                 {isAdmin && <button onClick={() => {
-                                                    SwalAlert.fire({ title: 'ลบข้อมูล?', text: 'คุณต้องการลบสลิปเงินเดือนนี้หรือไม่', icon: 'warning', showCancelButton: true }).then(res => {
-                                                        if(res.isConfirmed){ deleteRecord('salaryRecords', r.id); SwalAlert.fire('Deleted!', '', 'success'); }
+                                                    SwalAlert.fire({ title: 'ลบข้อมูล?', text: 'คุณต้องการลบสลิปเงินเดือนนี้หรือไม่', icon: 'warning', showCancelButton: true }).then(async res => {
+                                                        if(res.isConfirmed){ 
+                                                            SwalAlert.fire({title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
+                                                            await deleteRecord('salaryRecords', r.id); 
+                                                            SwalAlert.fire('Deleted!', '', 'success'); 
+                                                        }
                                                     });
                                                 }} className="p-1.5 bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-200 rounded hover:bg-red-100"><Icons.Trash /></button>}
                                             </td>
@@ -1521,8 +1543,9 @@
             
             const update = (f, v) => setSettings({...settings, [f]: v});
             
-            const handleSave = () => {
-                updateRecord('settings', null, settings);
+            const handleSave = async () => {
+                SwalAlert.fire({title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => SwalAlert.showLoading()});
+                await updateRecord('settings', null, settings);
                 SwalAlert.fire('Saved', '', 'success');
             };
 
@@ -1860,39 +1883,47 @@
 
             const persistData = (newState) => { setDataState(newState); localStorage.setItem('hrms_data', JSON.stringify(newState)); };
 
-            // ระบบส่งคำสั่งเพิ่ม/แก้ไข/ลบ ไปยัง Google Sheets
+            // ระบบส่งคำสั่งเพิ่ม/แก้ไข/ลบ ไปยัง Google Sheets โดยรอให้เสร็จก่อนจึงจะผ่าน
             const contextValue = {
                 data: dataState, user, isSyncing, forceRefresh, lang, setLang, theme, setTheme, t,
                 
-                addRecord: (table, record) => {
+                addRecord: async (table, record) => {
                     const newState = { ...dataState, [table]: [...(dataState[table]||[]), record] };
                     persistData(newState);
                     if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
-                        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'ADD_RECORD', table, record }) }).catch(e => console.error("Add Error", e));
+                        try {
+                            await fetchWithTimeout(GAS_URL, { method: 'POST', redirect: 'follow', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: 'ADD_RECORD', table, record }) });
+                        } catch(e) { console.error("Add Error", e); }
                     }
                 },
                 
-                updateRecord: (table, id, updates) => {
+                updateRecord: async (table, id, updates) => {
                     if (table === 'settings') {
                         const newState = { ...dataState, settings: updates };
                         persistData(newState);
                         if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
-                            fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'UPDATE_SETTINGS', settings: updates }) }).catch(e => console.error("Update Settings Error", e));
+                            try {
+                                await fetchWithTimeout(GAS_URL, { method: 'POST', redirect: 'follow', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: 'UPDATE_SETTINGS', settings: updates }) });
+                            } catch(e) { console.error("Update Settings Error", e); }
                         }
                     } else {
                         const newState = { ...dataState, [table]: dataState[table].map(item => item.id === id ? { ...item, ...updates } : item) };
                         persistData(newState);
                         if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
-                            fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'UPDATE_RECORD', table, id, updates }) }).catch(e => console.error("Update Error", e));
+                            try {
+                                await fetchWithTimeout(GAS_URL, { method: 'POST', redirect: 'follow', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: 'UPDATE_RECORD', table, id, updates }) });
+                            } catch(e) { console.error("Update Error", e); }
                         }
                     }
                 },
                 
-                deleteRecord: (table, id) => {
+                deleteRecord: async (table, id) => {
                     const newState = { ...dataState, [table]: dataState[table].filter(item => item.id !== id) };
                     persistData(newState);
                     if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
-                        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'DELETE_RECORD', table, id }) }).catch(e => console.error("Delete Error", e));
+                        try {
+                            await fetchWithTimeout(GAS_URL, { method: 'POST', redirect: 'follow', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: 'DELETE_RECORD', table, id }) });
+                        } catch(e) { console.error("Delete Error", e); }
                     }
                 }
             };
