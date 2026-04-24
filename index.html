@@ -101,7 +101,7 @@
         // ==========================================
         const i18n = {
             th: {
-                app_name: 'Hug Dee Home Clinic', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
+                app_name: 'Hug Dee Home HRMS', app_desc: 'ระบบจัดการทรัพยากรบุคคล',
                 username: 'ชื่อผู้ใช้', password: 'รหัสผ่าน', signin: 'เข้าสู่ระบบ',
                 dashboard: 'แดชบอร์ด', employees: 'พนักงาน', leave_ot: 'การลา & OT', payroll: 'เงินเดือน', my_salary: 'เงินเดือนของฉัน', settings: 'ตั้งค่า', logout: 'ออกจากระบบ',
                 force_refresh: 'ซิงค์ข้อมูล', syncing: 'กำลังซิงค์...',
@@ -1698,14 +1698,18 @@
         };
 
         const Layout = ({ children, setView, view, user, onLogout }) => {
-            const { t, lang, setLang, theme, setTheme } = useContext(AppContext);
+            const { t, lang, setLang, theme, setTheme, data } = useContext(AppContext);
             const [sidebarOpen, setSidebarOpen] = useState(true);
             const isAdmin = user.role === 'Admin';
+            
+            // เช็คว่าพนักงานที่ล็อกอินอยู่เป็น Part-time หรือไม่
+            const currentEmp = data.employees?.find(e => String(e.id).trim().toLowerCase() === String(user.empId || '').trim().toLowerCase());
+            const isPartTime = currentEmp?.empType === 'Part-time';
 
             const navItems = [
                 { id: 'dashboard', label: t('dashboard'), icon: Icons.Dashboard, show: isAdmin },
                 { id: 'employees', label: t('employees'), icon: Icons.Users, show: isAdmin },
-                { id: 'leave', label: t('leave_ot'), icon: Icons.Calendar, show: true },
+                { id: 'leave', label: t('leave_ot'), icon: Icons.Calendar, show: isAdmin || !isPartTime },
                 { id: 'payroll', label: isAdmin ? t('payroll') : t('my_salary'), icon: Icons.Money, show: true },
                 { id: 'settings', label: t('settings'), icon: Icons.Settings, show: isAdmin }
             ];
@@ -1881,7 +1885,18 @@
 
                 if (found) { 
                     setUser(found); 
-                    setView(found.role === 'Admin' ? 'dashboard' : 'leave'); 
+                    
+                    // หากล็อกอินสำเร็จ ให้หาข้อมูลพนักงานเพื่อจัดหน้าเริ่มต้น
+                    const allEmps = dataState.employees;
+                    const empInfo = allEmps?.find(e => String(e.id).trim().toLowerCase() === String(found.empId || '').trim().toLowerCase());
+                    
+                    if (found.role === 'Admin') {
+                        setView('dashboard');
+                    } else if (empInfo?.empType === 'Part-time') {
+                        setView('payroll'); // ถ้าเป็นพนักงานชั่วคราว ให้เริ่มที่หน้าเงินเดือน
+                    } else {
+                        setView('leave'); // ถ้าเป็นพนักงานประจำ ให้เริ่มที่หน้าการลา
+                    }
                 } else { 
                     SwalAlert.fire('Error', 'Invalid credentials / รหัสผ่านไม่ถูกต้อง (ตรวจสอบชื่อผู้ใช้และรหัสผ่านจากฐานข้อมูล)', 'error'); 
                 }
